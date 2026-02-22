@@ -21,3 +21,7 @@
 - EngineVault 结构重构: 引入 Addresses/Config 参数结构；实现 rebalance/hedge/only-unwind 骨架与 bounty 护栏；增加 WithdrawalQueue 合约与单测。
 - README 英文化完成，新增 WithdrawalQueue 与核心合约说明。
 - 运行 `forge test` (BSC RPC): 11 tests 全绿。
+- 完成 swap/flash/仓位解码: EngineVault 增加 swap 逻辑与 flash 借款量计算；FlashRebalancer 增加 vault 回调；1001x 使用 getPositionsV2(address,address) totalQty 作为对冲基数。
+- README 增补 Implementation Notes（swap/flash/reader 说明）。
+- 运行 `forge test` (BSC RPC): 11 tests 全绿（无失败）。
+- 运行 `/update_plan`：向用户汇报了当前自动驾驶理财车的进度、通俗比喻以及遗留任务，处于 M2 到 M3 的过渡阶段。

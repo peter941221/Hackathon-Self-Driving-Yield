@@ -74,4 +74,18 @@ library PancakeV2Adapter {
         }
         price1e18 = (uint256(r1) * 1e18) / uint256(r0);
     }
+
+    function swapExactTokensForTokens(address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOutMin)
+        internal
+        returns (uint256 amountOut)
+    {
+        IERC20(tokenIn).approve(ROUTER, amountIn);
+        address[] memory path = new address[](2);
+        path[0] = tokenIn;
+        path[1] = tokenOut;
+        uint256[] memory amounts = IPancakeRouterV2(ROUTER).swapExactTokensForTokens(
+            amountIn, amountOutMin, path, address(this), block.timestamp + 300
+        );
+        amountOut = amounts[amounts.length - 1];
+    }
 }

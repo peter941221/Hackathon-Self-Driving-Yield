@@ -16,6 +16,15 @@ An autonomous, non-custodial yield engine for BNB Chain that combines AsterDEX E
 - No Admin: all parameters are immutable, no multisig or keeper dependency.
 
 
+## Implementation Notes
+
+- LP rebalancing uses on-chain swaps when the base/quote ratio is off target.
+
+- Flash rebalance computes a borrow amount from LP deviation and caps it to 10% of reserves.
+
+- 1001x position size relies on `getPositionsV2(address,address)` totalQty (reader facet).
+
+
 ## Architecture (High-Level)
 
 ```

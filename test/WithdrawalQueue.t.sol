@@ -75,7 +75,8 @@ contract WithdrawalQueueTest is Test {
                 stormAlpBps: 8000,
                 stormLpBps: 1700,
                 safeCycleThreshold: 3,
-                maxGasPrice: 0
+                maxGasPrice: 0,
+                swapSlippageBps: 50
             })
         );
 

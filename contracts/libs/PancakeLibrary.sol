@@ -53,6 +53,19 @@ library PancakeLibrary {
         amountIn = numerator / denominator + 1;
     }
 
+    function getAmountOut(uint256 amountIn, uint256 reserveIn, uint256 reserveOut)
+        internal
+        pure
+        returns (uint256 amountOut)
+    {
+        require(amountIn > 0, "INSUFFICIENT_INPUT");
+        require(reserveIn > 0 && reserveOut > 0, "INSUFFICIENT_LIQUIDITY");
+        uint256 amountInWithFee = amountIn * 998;
+        uint256 numerator = amountInWithFee * reserveOut;
+        uint256 denominator = reserveIn * 1000 + amountInWithFee;
+        amountOut = numerator / denominator;
+    }
+
     function getAmountsIn(address factory, uint256 amountOut, address[] memory path)
         internal
         view
@@ -64,6 +77,20 @@ library PancakeLibrary {
         for (uint256 i = path.length - 1; i > 0; i--) {
             (uint256 reserveIn, uint256 reserveOut) = getReserves(factory, path[i - 1], path[i]);
             amounts[i - 1] = getAmountIn(amounts[i], reserveIn, reserveOut);
+        }
+    }
+
+    function getAmountsOut(address factory, uint256 amountIn, address[] memory path)
+        internal
+        view
+        returns (uint256[] memory amounts)
+    {
+        require(path.length >= 2, "INVALID_PATH");
+        amounts = new uint256[](path.length);
+        amounts[0] = amountIn;
+        for (uint256 i = 0; i < path.length - 1; i++) {
+            (uint256 reserveIn, uint256 reserveOut) = getReserves(factory, path[i], path[i + 1]);
+            amounts[i + 1] = getAmountOut(amounts[i], reserveIn, reserveOut);
         }
     }
 }

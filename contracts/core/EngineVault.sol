@@ -7,6 +7,7 @@ import {AsterAlpAdapter} from "../adapters/AsterAlpAdapter.sol";
 import {Aster1001xAdapter} from "../adapters/Aster1001xAdapter.sol";
 import {PancakeV2Adapter} from "../adapters/PancakeV2Adapter.sol";
 import {FlashRebalancer} from "../adapters/FlashRebalancer.sol";
+import {PancakeLibrary} from "../libs/PancakeLibrary.sol";
 import {MathLib} from "../libs/MathLib.sol";
 
 contract EngineVault {
@@ -38,11 +39,13 @@ contract EngineVault {
     uint16 public immutable stormLpBps;
     uint8 public immutable safeCycleThreshold;
     uint256 public immutable maxGasPrice;
+    uint16 public immutable swapSlippageBps;
 
     uint256 public lastCycleTimestamp;
     uint256 public lastTotalAssets;
     uint256 public lastKnownNav;
     uint8 public safeCycleCount;
+    bool private inFlashRebalance;
 
     enum RiskMode {
         NORMAL,
@@ -94,6 +97,7 @@ contract EngineVault {
         uint16 stormLpBps;
         uint8 safeCycleThreshold;
         uint256 maxGasPrice;
+        uint16 swapSlippageBps;
     }
 
     constructor(Addresses memory addresses, Config memory config) {
@@ -121,6 +125,7 @@ contract EngineVault {
         stormLpBps = config.stormLpBps;
         safeCycleThreshold = config.safeCycleThreshold;
         maxGasPrice = config.maxGasPrice;
+        swapSlippageBps = config.swapSlippageBps;
         currentRegime = VolatilityOracle.Regime.NORMAL;
 
         if (addresses.v2Pair != address(0) && addresses.pairBase != address(0)) {
@@ -213,6 +218,23 @@ contract EngineVault {
         lastCycleTimestamp = block.timestamp;
         lastTotalAssets = totalAssets();
         emit CycleExecuted(msg.sender, currentRegime, bounty, block.timestamp);
+    }
+
+    function onFlashRebalance(address tokenBorrowed, uint256 repayAmount) external {
+        require(msg.sender == flashRebalancer, "ONLY_REBALANCER");
+        if (!enableExternalCalls) {
+            IERC20(tokenBorrowed).transfer(msg.sender, repayAmount);
+            return;
+        }
+
+        inFlashRebalance = true;
+        _rebalanceAssets();
+        _rebalanceHedge();
+        inFlashRebalance = false;
+
+        uint256 balance = IERC20(tokenBorrowed).balanceOf(address(this));
+        require(balance >= repayAmount, "FLASH_REPAY");
+        IERC20(tokenBorrowed).transfer(msg.sender, repayAmount);
     }
 
     function unwindForWithdraw(uint256) external {
@@ -338,8 +360,8 @@ contract EngineVault {
             return;
         }
 
-        if (flashRebalancer != address(0) && currentRegime == VolatilityOracle.Regime.STORM) {
-            uint256 borrowAmount = 0;
+        if (!inFlashRebalance && flashRebalancer != address(0) && currentRegime == VolatilityOracle.Regime.STORM) {
+            uint256 borrowAmount = _calcFlashBorrowAmount(lpDelta, totalValue);
             if (borrowAmount > 0) {
                 FlashRebalancer(flashRebalancer).executeFlashRebalance(
                     FlashRebalancer.RebalanceParams({borrowAmount: borrowAmount, borrowToken0: baseIsToken0})
@@ -432,17 +454,43 @@ contract EngineVault {
         }
         uint256 quoteBalance = asset.balanceOf(address(this));
         uint256 baseBalance = IERC20(pairBase).balanceOf(address(this));
-        if (quoteBalance == 0 || baseBalance == 0) {
+        if (quoteBalance == 0 && baseBalance == 0) {
             return;
         }
-        uint256 quoteNeeded = value / 2;
-        uint256 baseNeeded = ((value - quoteNeeded) * 1e18) / basePrice;
-        uint256 quoteToUse = quoteNeeded > quoteBalance ? quoteBalance : quoteNeeded;
-        uint256 baseToUse = baseNeeded > baseBalance ? baseBalance : baseNeeded;
+
+        uint256 quoteTarget = value / 2;
+        uint256 baseTarget = quoteTarget * 1e18 / basePrice;
+
+        if (baseBalance < baseTarget && quoteBalance > quoteTarget) {
+            uint256 baseShort = baseTarget - baseBalance;
+            uint256 quoteToSwap = baseShort * basePrice / 1e18;
+            uint256 maxSwap = quoteBalance > quoteTarget ? quoteBalance - quoteTarget : 0;
+            if (quoteToSwap > maxSwap) {
+                quoteToSwap = maxSwap;
+            }
+            if (quoteToSwap > 0) {
+                _swapQuoteToBase(quoteToSwap);
+            }
+        } else if (quoteBalance < quoteTarget && baseBalance > baseTarget) {
+            uint256 quoteShort = quoteTarget - quoteBalance;
+            uint256 baseToSwap = quoteShort * 1e18 / basePrice;
+            uint256 maxSwapBase = baseBalance > baseTarget ? baseBalance - baseTarget : 0;
+            if (baseToSwap > maxSwapBase) {
+                baseToSwap = maxSwapBase;
+            }
+            if (baseToSwap > 0) {
+                _swapBaseToQuote(baseToSwap);
+            }
+        }
+
+        quoteBalance = asset.balanceOf(address(this));
+        baseBalance = IERC20(pairBase).balanceOf(address(this));
+        uint256 quoteToUse = quoteBalance > quoteTarget ? quoteTarget : quoteBalance;
+        uint256 baseToUse = baseBalance > baseTarget ? baseTarget : baseBalance;
         if (quoteToUse == 0 || baseToUse == 0) {
             return;
         }
-        PancakeV2Adapter.addLiquidity(pairBase, pairQuote, baseToUse, quoteToUse, 50);
+        PancakeV2Adapter.addLiquidity(pairBase, pairQuote, baseToUse, quoteToUse, swapSlippageBps);
     }
 
     function _reduceLp(uint256 value) internal {
@@ -465,7 +513,50 @@ contract EngineVault {
         if (liquidityToRemove == 0) {
             return;
         }
-        PancakeV2Adapter.removeLiquidity(pairBase, pairQuote, liquidityToRemove, 50);
+        PancakeV2Adapter.removeLiquidity(pairBase, pairQuote, liquidityToRemove, swapSlippageBps);
+    }
+
+    function _swapQuoteToBase(uint256 amountIn) internal returns (uint256 amountOut) {
+        if (pancakeFactory == address(0) || pairBase == address(0) || pairQuote == address(0)) {
+            return 0;
+        }
+        (uint256 reserveIn, uint256 reserveOut) = PancakeLibrary.getReserves(pancakeFactory, pairQuote, pairBase);
+        uint256 expectedOut = PancakeLibrary.getAmountOut(amountIn, reserveIn, reserveOut);
+        uint256 minOut = expectedOut * (10000 - swapSlippageBps) / 10000;
+        amountOut = PancakeV2Adapter.swapExactTokensForTokens(pairQuote, pairBase, amountIn, minOut);
+    }
+
+    function _swapBaseToQuote(uint256 amountIn) internal returns (uint256 amountOut) {
+        if (pancakeFactory == address(0) || pairBase == address(0) || pairQuote == address(0)) {
+            return 0;
+        }
+        (uint256 reserveIn, uint256 reserveOut) = PancakeLibrary.getReserves(pancakeFactory, pairBase, pairQuote);
+        uint256 expectedOut = PancakeLibrary.getAmountOut(amountIn, reserveIn, reserveOut);
+        uint256 minOut = expectedOut * (10000 - swapSlippageBps) / 10000;
+        amountOut = PancakeV2Adapter.swapExactTokensForTokens(pairBase, pairQuote, amountIn, minOut);
+    }
+
+    function _calcFlashBorrowAmount(int256 lpDelta, uint256 totalValue) internal view returns (uint256 borrowAmount) {
+        if (lpDelta == 0 || v2Pair == address(0)) {
+            return 0;
+        }
+        uint256 absDelta = lpDelta > 0 ? uint256(lpDelta) : uint256(-lpDelta);
+        if (absDelta < (totalValue * rebalanceThresholdBps) / 10000) {
+            return 0;
+        }
+        uint256 basePrice = _getBasePrice1e18();
+        if (basePrice == 0) {
+            return 0;
+        }
+        uint256 borrowValue = absDelta / 2;
+        borrowAmount = (borrowValue * 1e18) / basePrice;
+
+        (uint112 r0, uint112 r1,) = IPancakePairV2(v2Pair).getReserves();
+        uint256 reserveBase = baseIsToken0 ? uint256(r0) : uint256(r1);
+        uint256 cap = reserveBase / 10;
+        if (borrowAmount > cap) {
+            borrowAmount = cap;
+        }
     }
 
     function _calculateBounty() internal view returns (uint256) {

@@ -4,6 +4,10 @@ import {IERC20} from "../interfaces/IERC20.sol";
 import {IPancakePairV2} from "../interfaces/IPancakePairV2.sol";
 import {PancakeLibrary} from "../libs/PancakeLibrary.sol";
 
+interface IFlashRebalanceHook {
+    function onFlashRebalance(address tokenBorrowed, uint256 repayAmount) external;
+}
+
 contract FlashRebalancer {
     address public immutable factory;
     address public immutable pair;
@@ -37,19 +41,17 @@ contract FlashRebalancer {
         address token0 = IPancakePairV2(pair).token0();
         address token1 = IPancakePairV2(pair).token1();
 
-        address[] memory path = new address[](2);
-        uint256 repayAmount;
+        address tokenBorrowed = params.borrowToken0 ? token0 : token1;
+        uint256 borrowed = params.borrowToken0 ? amount0 : amount1;
+        uint256 repayAmount = _calculateRepayAmount(borrowed);
 
-        if (params.borrowToken0) {
-            path[0] = token1;
-            path[1] = token0;
-            repayAmount = PancakeLibrary.getAmountsIn(factory, amount0, path)[0];
-            IERC20(token1).transfer(msg.sender, repayAmount);
-        } else {
-            path[0] = token0;
-            path[1] = token1;
-            repayAmount = PancakeLibrary.getAmountsIn(factory, amount1, path)[0];
-            IERC20(token0).transfer(msg.sender, repayAmount);
-        }
+        IERC20(tokenBorrowed).transfer(vault, borrowed);
+        IFlashRebalanceHook(vault).onFlashRebalance(tokenBorrowed, repayAmount);
+
+        IERC20(tokenBorrowed).transfer(msg.sender, repayAmount);
+    }
+
+    function _calculateRepayAmount(uint256 amountOut) internal pure returns (uint256) {
+        return (amountOut * 1000) / 998 + 1;
     }
 }
