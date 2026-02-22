@@ -14,3 +14,10 @@
 - 链上核对完成: 读取 BTCB/USDT V2 Pair 地址与 reserves、ALP 地址、cooldown = 172800；`lastMintedTimestamp()` 在 diamond 上不存在（需 Louper/ABI 对齐）。
 - LouperDump 已跑通: 导出 facets 与 selectors（待进一步映射函数签名）。
 - Git: 已 `git init` 并两次提交，推送到 `origin/main`。
+- Louper selector 映射完成: 新增 `docs/LOUPER_MAP.md`，确认 ALP 与 Trading/Reader 关键签名；Aster ABI 调整为 `uint96/uint80/uint64/uint24` 精度。
+- 实现 Task4-6 骨架: `VolatilityOracle` + `EngineVault` + `FlashRebalancer` + `PancakeOracleLibrary/PancakeLibrary/MathLib`；新增对应单测。
+- 运行 `forge test` (BSC RPC 最新块): 10 tests 全部通过；旧的固定 block 因非 archive node 报错，已改为不锁定 block。
+- 更新文档: `README.md` 增加 Louper 映射索引；`技术方案2.txt` 同步 ABI 与 reader 签名。
+- EngineVault 结构重构: 引入 Addresses/Config 参数结构；实现 rebalance/hedge/only-unwind 骨架与 bounty 护栏；增加 WithdrawalQueue 合约与单测。
+- README 英文化完成，新增 WithdrawalQueue 与核心合约说明。
+- 运行 `forge test` (BSC RPC): 11 tests 全绿。

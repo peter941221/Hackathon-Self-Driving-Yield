@@ -38,7 +38,7 @@ contract AsterAlpAdapterTest is Test {
         if (address(harness) == address(0)) {
             return;
         }
-        (bool ok, ) = DIAMOND.staticcall(abi.encodeWithSignature("ALP()"));
+        (bool ok,) = DIAMOND.staticcall(abi.encodeWithSignature("ALP()"));
         if (!ok) {
             return;
         }
@@ -50,7 +50,7 @@ contract AsterAlpAdapterTest is Test {
         if (address(harness) == address(0)) {
             return;
         }
-        (bool ok, ) = DIAMOND.staticcall(abi.encodeWithSignature("coolingDuration()"));
+        (bool ok,) = DIAMOND.staticcall(abi.encodeWithSignature("coolingDuration()"));
         if (!ok) {
             return;
         }

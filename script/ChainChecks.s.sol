@@ -17,7 +17,7 @@ contract ChainChecks is Script {
         console2.log("Pair", pair);
 
         if (pair != address(0)) {
-            (uint112 r0, uint112 r1, ) = IPancakePairV2(pair).getReserves();
+            (uint112 r0, uint112 r1,) = IPancakePairV2(pair).getReserves();
             console2.log("Token0", IPancakePairV2(pair).token0());
             console2.log("Token1", IPancakePairV2(pair).token1());
             console2.log("Reserve0", uint256(r0));
@@ -28,7 +28,8 @@ contract ChainChecks is Script {
         console2.log("ALP", alp);
         console2.log("Cooldown", IAsterDiamond(diamond).coolingDuration());
 
-        (bool ok, bytes memory data) = diamond.staticcall(abi.encodeWithSignature("lastMintedTimestamp()"));
+        (bool ok, bytes memory data) =
+            diamond.staticcall(abi.encodeWithSignature("lastMintedTimestamp(address)", address(this)));
         if (ok && data.length >= 32) {
             console2.log("LastMint", abi.decode(data, (uint256)));
         } else {

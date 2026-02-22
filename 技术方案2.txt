@@ -806,17 +806,17 @@ library Aster1001xAdapter {
     // --- Diamond 地址 ---
     address constant DIAMOND = 0x1b6f2d3844c6ae7d56ceb3c3643b9060ba28feb0;
 
-    // --- OpenDataInput 结构体（官方文档精度） ---
+    // --- OpenDataInput 结构体（链上 Louper 验证精度） ---
     struct OpenDataInput {
         address pairBase;   // BTCB 地址
         bool    isLong;     // false = short（对冲用）
         address tokenIn;    // USDT
-        uint256 amountIn;   // 保证金, 精度 1e18
-        uint256 qty;        // 合约数量, 精度 1e10
-        uint256 price;      // 最差可接受价格, 精度 1e8
-        uint256 stopLoss;   // 0 (P0不设)
-        uint256 takeProfit; // 0 (P0不设)
-        uint256 broker;     // 0
+        uint96  amountIn;   // 保证金, 精度 1e18
+        uint80  qty;        // 合约数量, 精度 1e10
+        uint64  price;      // 最差可接受价格, 精度 1e8
+        uint64  stopLoss;   // 0 (P0不设)
+        uint64  takeProfit; // 0 (P0不设)
+        uint24  broker;     // 0
     }
     
     // --- 写操作（TradingPortalFacet） ---
@@ -848,19 +848,19 @@ library Aster1001xAdapter {
         IAsterDiamond(diamond).closeTrade(tradeHash);
     }
     
-    function addMargin(address diamond, bytes32 tradeHash, uint256 amount) internal {
+    function addMargin(address diamond, bytes32 tradeHash, uint96 amount) internal {
         IAsterDiamond(diamond).addMargin(tradeHash, amount);
     }
     
     // --- 读操作（TradingReaderFacet） ---
-    function getPositions(address diamond, address account) 
+    function getPositions(address diamond, address account, address pairBase) 
         internal view returns (bytes32[] memory tradeHashes, uint256 totalQty) 
     {
-        // 通过 getPositionsV2 获取当前仓位
+        // 通过 getPositionsV2(account, pairBase) 获取当前仓位
         // 返回 tradeHash 列表和总 qty
     }
     
-    function getHedgeBaseQty(address diamond, address account)
+    function getHedgeBaseQty(address diamond, address account, address pairBase)
         internal view returns (uint256 baseQty)
     {
         // 从仓位数据中提取 base 数量
@@ -884,21 +884,20 @@ library Aster1001xAdapter {
 library AsterAlpAdapter {
     // --- 核心操作（AlpManagerFacet） ---
     
-    function mintAlp(address diamond, address tokenIn, uint256 amount) 
+    function mintAlp(address diamond, address tokenIn, uint256 amount, uint256 minAlp, bool stake) 
         internal returns (uint256 alpReceived)
     {
         IERC20(tokenIn).approve(diamond, amount);
-        // 调用 diamond.mintAlp(tokenIn, amount, minAlp)
         // minAlp 用 90% 预估值做滑点保护
-        alpReceived = IAsterDiamond(diamond).mintAlp(tokenIn, amount, 0);
+        alpReceived = IAsterDiamond(diamond).mintAlp(tokenIn, amount, minAlp, stake);
     }
     
-    function burnAlp(address diamond, address tokenOut, uint256 alpAmount)
+    function burnAlp(address diamond, address tokenOut, uint256 alpAmount, uint256 minOut)
         internal returns (uint256 tokenReceived)
     {
         // 检查冷却期
         require(canBurn(diamond), "ALP: cooling period");
-        tokenReceived = IAsterDiamond(diamond).burnAlp(tokenOut, alpAmount, 0);
+        tokenReceived = IAsterDiamond(diamond).burnAlp(tokenOut, alpAmount, minOut, address(this));
     }
     
     // --- 只读 ---
@@ -912,13 +911,12 @@ library AsterAlpAdapter {
     
     function canBurn(address diamond) internal view returns (bool) {
         uint256 cooldown = IAsterDiamond(diamond).coolingDuration();
-        uint256 lastMint = IAsterDiamond(diamond).lastMintedTimestamp();
+        uint256 lastMint = IAsterDiamond(diamond).lastMintedTimestamp(address(this));
         return block.timestamp >= lastMint + cooldown;
     }
     
     function getAlpNAV(address diamond) internal view returns (uint256) {
-        // ALP NAV = 池内总资产价值 / ALP totalSupply
-        // 需要从 AlpManagerFacet 读取
+        return IAsterDiamond(diamond).alpPrice();
     }
     
     function getAlpValueInUsd(address diamond, address account)

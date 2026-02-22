@@ -4,12 +4,12 @@ import {IERC20} from "../interfaces/IERC20.sol";
 import {IAsterDiamond} from "../interfaces/IAsterDiamond.sol";
 
 library AsterAlpAdapter {
-    function mintAlp(address diamond, address tokenIn, uint256 amount, uint256 minAlp)
+    function mintAlp(address diamond, address tokenIn, uint256 amount, uint256 minAlp, bool stake)
         internal
         returns (uint256 alpReceived)
     {
         IERC20(tokenIn).approve(diamond, amount);
-        alpReceived = IAsterDiamond(diamond).mintAlp(tokenIn, amount, minAlp);
+        alpReceived = IAsterDiamond(diamond).mintAlp(tokenIn, amount, minAlp, stake);
     }
 
     function burnAlp(address diamond, address tokenOut, uint256 alpAmount, uint256 minOut)
@@ -17,7 +17,7 @@ library AsterAlpAdapter {
         returns (uint256 tokenReceived)
     {
         require(canBurn(diamond), "ALP_COOLDOWN");
-        tokenReceived = IAsterDiamond(diamond).burnAlp(tokenOut, alpAmount, minOut);
+        tokenReceived = IAsterDiamond(diamond).burnAlp(tokenOut, alpAmount, minOut, address(this));
     }
 
     function getAlpBalance(address diamond, address account) internal view returns (uint256) {
@@ -27,7 +27,8 @@ library AsterAlpAdapter {
 
     function canBurn(address diamond) internal view returns (bool) {
         uint256 cooldown = IAsterDiamond(diamond).coolingDuration();
-        (bool ok, bytes memory data) = diamond.staticcall(abi.encodeWithSignature("lastMintedTimestamp()"));
+        (bool ok, bytes memory data) =
+            diamond.staticcall(abi.encodeWithSignature("lastMintedTimestamp(address)", address(this)));
         if (!ok || data.length < 32) {
             return false;
         }
@@ -36,7 +37,7 @@ library AsterAlpAdapter {
     }
 
     function getAlpNAV(address diamond) internal view returns (uint256) {
-        return IAsterDiamond(diamond).getAlpNav();
+        return IAsterDiamond(diamond).alpPrice();
     }
 
     function getAlpValueInUsd(address diamond, address account) internal view returns (uint256) {

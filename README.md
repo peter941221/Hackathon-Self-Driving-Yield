@@ -1,92 +1,70 @@
 # Self-Driving Yield Engine v2.0
 
-面向 BNB Chain 的全自动、非托管收益引擎 (Self-Driving Yield Engine)。
-
-核心目标: 在无需人工/多签/链下 keeper 的情况下，自动组合 AsterDEX Earn 与 PancakeSwap LP，并用 1001x 对冲实现风险调整后更优收益。
+An autonomous, non-custodial yield engine for BNB Chain that combines AsterDEX Earn (ALP) with PancakeSwap V2 LPs and on-chain delta hedging. The goal is to outperform static vaults by dynamically reallocating based on on-chain realized volatility.
 
 
-## 四大支柱 (Four Pillars)
+## Key Ideas
 
-1. Integrate: AsterDEX Earn (ALP) 作为主收益引擎
+- Dual Engine: ALP is both a yield source and a volatility hedge.
 
-2. Stack: PancakeSwap V2 LP 作为可组合收益层
+- Regime Switching: CALM / NORMAL / STORM allocations shift automatically.
 
-3. Automate: permissionless cycle() + on-chain 波动率 Oracle
+- Permissionless Automation: anyone can call `cycle()` and earn a bounded bounty.
 
-4. Protect: 1001x Delta Hedge + 风控熔断
+- Atomic Rebalance: Flash Swap rebalances reduce MEV surface.
 
-
-## 核心创新 (Key Innovations)
-
-- ALP 双重引擎 (Dual Engine): 同时承担收益与波动率对冲
-
-- Flash Rebalance: 单笔交易内完成再平衡，减少 MEV 面
-
-- Regime Switching: CALM / NORMAL / STORM 自动切换
-
-- Fully On-Chain: 无 Chainlink 依赖，无外部 keeper
+- No Admin: all parameters are immutable, no multisig or keeper dependency.
 
 
-## 系统概览 (Architecture at a Glance)
+## Architecture (High-Level)
 
 ```
 User (USDT)
-   |
-deposit / redeem
-   |
-   v
-EngineVault (ERC-4626)
-   |
-   +-----------------------+-----------------------+
-   |                       |                       |
-ALP Adapter           Pancake V2 Adapter      1001x Adapter
-(AsterDEX Earn)       (LP + Flash Swap)       (Delta Hedge)
-   |
-   v
-ALP Token        V2 LP Token + Flash Rebalance    Perp Positions
-
-Cross-Cutting:
-- VolatilityOracle (TWAP)
-- WithdrawalQueue (No Admin)
+  -> EngineVault (ERC-4626 style)
+     -> ALP Adapter (AsterDEX Earn)
+     -> Pancake V2 Adapter (LP + Flash Swap)
+     -> 1001x Adapter (Delta Hedge)
+     -> VolatilityOracle (TWAP)
+     -> WithdrawalQueue (permissionless claim)
 ```
 
 
-## 核心流程 (cycle)
+## Core Contracts
 
-```
-PHASE 0  Pre-checks (minCycleInterval, protocol status)
-PHASE 1  Read state (ALP, LP, hedge, cash)
-PHASE 2  TWAP snapshot + Regime
-PHASE 3  Target allocation
-PHASE 4  Rebalance (Flash or incremental)
-PHASE 5  Delta hedge
-PHASE 6  Bounty payout + events
-```
+- `contracts/core/EngineVault.sol`
+
+- `contracts/core/VolatilityOracle.sol`
+
+- `contracts/core/WithdrawalQueue.sol`
+
+- `contracts/adapters/FlashRebalancer.sol`
 
 
-## 风控与安全 (Risk Controls)
+## Libraries & Interfaces
 
-- MEV 防护: slippage + deadline + Flash Rebalance
+- `contracts/libs/PancakeOracleLibrary.sol`
 
-- Bounty 护栏: gasPrice cap + cashBuffer cap
+- `contracts/libs/PancakeLibrary.sol`
 
-- TWAP 冷启动: MIN_SAMPLES + minSnapshotInterval
+- `contracts/libs/MathLib.sol`
 
-- ONLY_UNWIND 熔断模式: 只允许减仓，不锁死资金
-
-
-## 文档索引 (Docs)
-
-- 技术方案全文: `技术方案2.txt`
-
-- 架构文档: `ARCHITECTURE.md`
-
-- 经济模型: `ECONOMICS.md`
-
-- 施工计划: `施工计划.MD`
+- `contracts/interfaces/IAsterDiamond.sol`
 
 
-## 开发与测试 (Foundry)
+## Docs
+
+- Full Technical Spec: `技术方案2.txt`
+
+- Architecture: `ARCHITECTURE.md`
+
+- Economics: `ECONOMICS.md`
+
+- Implementation Plan: `施工计划.MD`
+
+- Louper Selector Map: `docs/LOUPER_MAP.md`
+
+
+## Quickstart (Foundry)
 
 ```bash
 forge build
@@ -94,4 +72,23 @@ forge test
 forge fmt
 ```
 
-Fork 测试需要 BSC RPC 与固定区块号 (见 `技术方案2.txt` / `施工计划.MD`)。
+
+## Fork Tests (BSC)
+
+Set the following environment variable for forked tests:
+
+```bash
+export BSC_RPC_URL="https://bsc-dataseed.binance.org/"
+forge test
+```
+
+Optional:
+
+```bash
+export BSC_FORK_BLOCK=82710000
+```
+
+
+## Status
+
+This repository is a working scaffold for the hackathon build-out. Core contracts and tests compile, and the strategy logic is being implemented iteratively.

@@ -5,6 +5,7 @@ import {Aster1001xAdapter} from "../contracts/adapters/Aster1001xAdapter.sol";
 
 contract Aster1001xAdapterTest is Test {
     address internal constant DIAMOND = 0x1b6F2d3844C6ae7D56ceb3C3643b9060ba28FEb0;
+    address internal constant BTCB = 0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c;
 
     function testUsdToQty() public {
         uint256 qty = Aster1001xAdapter.usdToQty(100e18, 25_000e8);
@@ -23,11 +24,11 @@ contract Aster1001xAdapterTest is Test {
             vm.createSelectFork(rpcUrl, forkBlock);
         }
 
-        (bool ok, ) = DIAMOND.staticcall(abi.encodeWithSignature("getPositionsV2(address)", address(this)));
+        (bool ok,) = DIAMOND.staticcall(abi.encodeWithSignature("getPositionsV2(address,address)", address(this), BTCB));
         if (!ok) {
             return;
         }
-        (bytes32[] memory tradeHashes, uint256 totalQty) = Aster1001xAdapter.getPositions(DIAMOND, address(this));
+        (bytes32[] memory tradeHashes, uint256 totalQty) = Aster1001xAdapter.getPositions(DIAMOND, address(this), BTCB);
         assertEq(tradeHashes.length, 0);
         assertEq(totalQty, 0);
     }

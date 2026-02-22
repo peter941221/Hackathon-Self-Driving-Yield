@@ -9,37 +9,25 @@ library PancakeV2Adapter {
     address internal constant ROUTER = 0x10ED43C718714eb63d5aA57B78B54704E256024E;
     address internal constant FACTORY = 0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73;
 
-    function addLiquidity(
-        address tokenA,
-        address tokenB,
-        uint256 amountA,
-        uint256 amountB,
-        uint256 slippageBps
-    ) internal returns (uint256 liquidity) {
+    function addLiquidity(address tokenA, address tokenB, uint256 amountA, uint256 amountB, uint256 slippageBps)
+        internal
+        returns (uint256 liquidity)
+    {
         IERC20(tokenA).approve(ROUTER, amountA);
         IERC20(tokenB).approve(ROUTER, amountB);
 
         uint256 minA = (amountA * (10000 - slippageBps)) / 10000;
         uint256 minB = (amountB * (10000 - slippageBps)) / 10000;
 
-        (, , liquidity) = IPancakeRouterV2(ROUTER).addLiquidity(
-            tokenA,
-            tokenB,
-            amountA,
-            amountB,
-            minA,
-            minB,
-            address(this),
-            block.timestamp + 300
+        (,, liquidity) = IPancakeRouterV2(ROUTER).addLiquidity(
+            tokenA, tokenB, amountA, amountB, minA, minB, address(this), block.timestamp + 300
         );
     }
 
-    function removeLiquidity(
-        address tokenA,
-        address tokenB,
-        uint256 liquidity,
-        uint256 slippageBps
-    ) internal returns (uint256 amountA, uint256 amountB) {
+    function removeLiquidity(address tokenA, address tokenB, uint256 liquidity, uint256 slippageBps)
+        internal
+        returns (uint256 amountA, uint256 amountB)
+    {
         address pair = IPancakeFactoryV2(FACTORY).getPair(tokenA, tokenB);
         IERC20(pair).approve(ROUTER, liquidity);
 
@@ -48,19 +36,13 @@ library PancakeV2Adapter {
         uint256 minB = (expectedB * (10000 - slippageBps)) / 10000;
 
         (amountA, amountB) = IPancakeRouterV2(ROUTER).removeLiquidity(
-            tokenA,
-            tokenB,
-            liquidity,
-            minA,
-            minB,
-            address(this),
-            block.timestamp + 300
+            tokenA, tokenB, liquidity, minA, minB, address(this), block.timestamp + 300
         );
     }
 
     function getUnderlyingAmounts(address pair, address account) internal view returns (uint256 amt0, uint256 amt1) {
         uint256 lpBal = IERC20(pair).balanceOf(account);
-        (uint112 r0, uint112 r1, ) = IPancakePairV2(pair).getReserves();
+        (uint112 r0, uint112 r1,) = IPancakePairV2(pair).getReserves();
         uint256 ts = IERC20(pair).totalSupply();
         if (ts == 0) {
             return (0, 0);
@@ -69,11 +51,11 @@ library PancakeV2Adapter {
         amt1 = (lpBal * uint256(r1)) / ts;
     }
 
-    function getUnderlyingAmountsForTokens(
-        address pair,
-        address account,
-        address tokenA
-    ) internal view returns (uint256 amtA, uint256 amtB) {
+    function getUnderlyingAmountsForTokens(address pair, address account, address tokenA)
+        internal
+        view
+        returns (uint256 amtA, uint256 amtB)
+    {
         (uint256 amt0, uint256 amt1) = getUnderlyingAmounts(pair, account);
         address token0 = IPancakePairV2(pair).token0();
         if (tokenA == token0) {
@@ -86,7 +68,7 @@ library PancakeV2Adapter {
     }
 
     function getSpotPrice1e18(address pair) internal view returns (uint256 price1e18) {
-        (uint112 r0, uint112 r1, ) = IPancakePairV2(pair).getReserves();
+        (uint112 r0, uint112 r1,) = IPancakePairV2(pair).getReserves();
         if (r0 == 0) {
             return 0;
         }

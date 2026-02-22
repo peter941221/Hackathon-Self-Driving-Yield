@@ -16,9 +16,9 @@ library Aster1001xAdapter {
             pairBase: pairBase,
             isLong: false,
             tokenIn: tokenIn,
-            amountIn: marginAmount,
-            qty: qty,
-            price: worstPrice,
+            amountIn: uint96(marginAmount),
+            qty: uint80(qty),
+            price: uint64(worstPrice),
             stopLoss: 0,
             takeProfit: 0,
             broker: 0
@@ -32,25 +32,28 @@ library Aster1001xAdapter {
         IAsterDiamond(diamond).closeTrade(tradeHash);
     }
 
-    function addMargin(address diamond, bytes32 tradeHash, address tokenIn, uint256 amount) internal {
+    function addMargin(address diamond, bytes32 tradeHash, address tokenIn, uint96 amount) internal {
         IERC20(tokenIn).approve(diamond, amount);
         IAsterDiamond(diamond).addMargin(tradeHash, amount);
     }
 
-    function getPositions(address diamond, address account)
+    function getPositions(address diamond, address account, address pairBase)
         internal
         view
         returns (bytes32[] memory tradeHashes, uint256 totalQty)
     {
-        (bool ok, bytes memory data) = diamond.staticcall(
-            abi.encodeWithSignature("getPositionsV2(address)", account)
-        );
+        (bool ok, bytes memory data) =
+            diamond.staticcall(abi.encodeWithSignature("getPositionsV2(address,address)", account, pairBase));
         require(ok, "READER_CALL_FAIL");
         (tradeHashes, totalQty) = abi.decode(data, (bytes32[], uint256));
     }
 
-    function getHedgeBaseQty(address diamond, address account) internal view returns (uint256 baseQty) {
-        (, uint256 totalQty) = getPositions(diamond, account);
+    function getHedgeBaseQty(address diamond, address account, address pairBase)
+        internal
+        view
+        returns (uint256 baseQty)
+    {
+        (, uint256 totalQty) = getPositions(diamond, account, pairBase);
         baseQty = totalQty;
     }
 
