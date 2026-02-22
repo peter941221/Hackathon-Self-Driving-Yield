@@ -10,3 +10,7 @@
 - 初始化 Foundry 项目: 生成 `foundry.toml` 并切换 `src = "contracts"`；移除默认 Counter 示例；新增接口 `IAsterDiamond.sol` / `IPancakeRouterV2.sol` / `IPancakePairV2.sol` / `IPancakeFactoryV2.sol` / `IERC20.sol`。
 - 拆分文档: 新增 `README.md` / `ARCHITECTURE.md` / `ECONOMICS.md`，并保留 `技术方案2.txt` 原文件。
 - 创建 GitHub Issues (Task 0-9): #2-#11 已生成，对应施工任务拆分。
+- 新增适配器与脚本: `PancakeV2Adapter` / `AsterAlpAdapter` / `Aster1001xAdapter`；新增 fork 测试骨架与 `ChainChecks.s.sol` / `LouperDump.s.sol`。
+- 链上核对完成: 读取 BTCB/USDT V2 Pair 地址与 reserves、ALP 地址、cooldown = 172800；`lastMintedTimestamp()` 在 diamond 上不存在（需 Louper/ABI 对齐）。
+- LouperDump 已跑通: 导出 facets 与 selectors（待进一步映射函数签名）。
+- Git: 已 `git init` 并两次提交，推送到 `origin/main`。
