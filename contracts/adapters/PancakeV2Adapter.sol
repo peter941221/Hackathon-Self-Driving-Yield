@@ -13,8 +13,8 @@ library PancakeV2Adapter {
         internal
         returns (uint256 liquidity)
     {
-        IERC20(tokenA).approve(ROUTER, amountA);
-        IERC20(tokenB).approve(ROUTER, amountB);
+        require(IERC20(tokenA).approve(ROUTER, amountA), "APPROVE_A");
+        require(IERC20(tokenB).approve(ROUTER, amountB), "APPROVE_B");
 
         uint256 minA = (amountA * (10000 - slippageBps)) / 10000;
         uint256 minB = (amountB * (10000 - slippageBps)) / 10000;
@@ -29,7 +29,7 @@ library PancakeV2Adapter {
         returns (uint256 amountA, uint256 amountB)
     {
         address pair = IPancakeFactoryV2(FACTORY).getPair(tokenA, tokenB);
-        IERC20(pair).approve(ROUTER, liquidity);
+        require(IERC20(pair).approve(ROUTER, liquidity), "APPROVE_LP");
 
         (uint256 expectedA, uint256 expectedB) = getUnderlyingAmountsForTokens(pair, address(this), tokenA);
         uint256 minA = (expectedA * (10000 - slippageBps)) / 10000;
@@ -79,7 +79,7 @@ library PancakeV2Adapter {
         internal
         returns (uint256 amountOut)
     {
-        IERC20(tokenIn).approve(ROUTER, amountIn);
+        require(IERC20(tokenIn).approve(ROUTER, amountIn), "APPROVE_SWAP");
         address[] memory path = new address[](2);
         path[0] = tokenIn;
         path[1] = tokenOut;

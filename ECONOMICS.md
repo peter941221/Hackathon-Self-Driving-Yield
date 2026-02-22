@@ -29,6 +29,45 @@ ALP mint/burn fee | -0.5~-2%| 动态费率
 ```
 
 
+## 2.1 关键输入 (Model Inputs)
+
+- TVL: 总资产规模 (USDT)
+
+- 交易量: ALP 与 V2 LP 的日均成交量
+
+- 手续费: Pancake V2 fee (0.20%~0.25%) / ALP fee (动态)
+
+- Funding: 1001x 资金费率区间 (-5% ~ +2%)
+
+- Gas: 50 / 200 / 500 gwei
+
+- Rebalance 频率: cycle() 次数 / 天
+
+
+## 2.2 公式 (Formulas)
+
+```
+LP Fee Yield (daily) = volumeLP * feeLP
+ALP Fee Yield (daily) = volumeALP * feeALP
+
+Funding Cost (daily) = notionalShort * fundingRate
+Trading Fee Cost (daily) = openCloseFee * notionalShort
+
+Gas Cost (daily) = cycleCount * gasUsed * gasPrice * bnbPrice
+
+Net Yield (daily) = ALP收益 + LP收益 - Funding - TradingFee - Gas - IL
+Net APY = Net Yield (daily) * 365 / TVL
+```
+
+说明:
+
+- notionalShort 与 LP base exposure 成正比
+
+- cycleCount = 86400 / minCycleInterval
+
+- IL 以波动率 proxy 估算
+
+
 ## 3. 三种 Regime 模拟
 
 ### CALM (vol < 1%)
@@ -85,3 +124,18 @@ ALP mint/burn fee | -0.5~-2%| 动态费率
 - 标注触发 ONLY_UNWIND 的条件
 
 - 给出再平衡频率与收益变化
+
+
+## 6. 敏感性输出模板 (Template)
+
+```
+Scenario: Gas 200 gwei, Funding -3%, Fee 0.25%
+- Net APY (min / avg / max): __ / __ / __
+- Cycle / day: __
+- ONLY_UNWIND Trigger: yes / no
+
+Scenario: 30% 单边行情 (BTC)
+- Net APY (min / avg / max): __ / __ / __
+- LP IL impact: __
+- Hedge effectiveness: __
+```

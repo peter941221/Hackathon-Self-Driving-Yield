@@ -51,9 +51,9 @@ contract FlashRebalancer {
         path[1] = tokenBorrowed;
         uint256 repayAmount = PancakeLibrary.getAmountsIn(factory, borrowed, path)[0];
 
-        IERC20(tokenBorrowed).transfer(vault, borrowed);
+        require(IERC20(tokenBorrowed).transfer(vault, borrowed), "TRANSFER_BORROW");
         IFlashRebalanceHook(vault).onFlashRebalance(tokenBorrowed, repayToken, borrowed, repayAmount);
 
-        IERC20(repayToken).transfer(msg.sender, repayAmount);
+        require(IERC20(repayToken).transfer(msg.sender, repayAmount), "TRANSFER_REPAY");
     }
 }

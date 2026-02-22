@@ -8,7 +8,7 @@ library AsterAlpAdapter {
         internal
         returns (uint256 alpReceived)
     {
-        IERC20(tokenIn).approve(diamond, amount);
+        require(IERC20(tokenIn).approve(diamond, amount), "APPROVE");
         alpReceived = IAsterDiamond(diamond).mintAlp(tokenIn, amount, minAlp, stake);
     }
 

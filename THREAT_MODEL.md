@@ -62,9 +62,9 @@ This document summarizes the main risks, assumptions, and mitigations for the Se
 
 7) Reentrancy / Callback Risk
 
-- Mitigation: only expected external calls; no admin functions.
+- Mitigation: nonReentrant guards on EngineVault and WithdrawalQueue entrypoints.
 
-- Residual risk: no explicit reentrancy guard; add if external hooks expand.
+- Mitigation: flash callback restricted to the pair and vault.
 
 
 ## Monitoring Signals

@@ -58,9 +58,9 @@ contract VolatilityOracle {
             return 0;
         }
 
-        uint256 sumSquaredReturns;
-        uint256 count;
-        uint256 prevPrice;
+        uint256 sumSquaredReturns = 0;
+        uint256 count = 0;
+        uint256 prevPrice = 0;
 
         for (uint8 i = 1; i < snapshotCount; i++) {
             uint8 curr = (snapshotIndex + WINDOW_SIZE - i) % WINDOW_SIZE;

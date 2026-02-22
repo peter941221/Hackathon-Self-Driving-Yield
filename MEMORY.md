@@ -34,4 +34,6 @@
 - 新增 `THREAT_MODEL.md` 威胁建模文档；README 增加文档索引与不变量测试命令。
 - 新增 `test/Invariant.t.sol` 并通过不变量测试；施工计划 Part10/Part11 同步更新。
 - 新增 `test/EngineVaultRiskMode.t.sol`，覆盖 ONLY_UNWIND 负向测试；README 增加负向测试命令。
+- 完成经济模型增强: `ECONOMICS.md` 增加输入/公式/敏感性输出模板；新增 `docs/DEMO_SCRIPT.md`。
+- 代码质量: 运行 slither (排除依赖) 与 forge test/format；修复 unchecked transfer 与 reentrancy guard；仍有 timestamp/strict equality 等 warnings。
 - 运行 `/update_plan`：向用户汇报了当前自动驾驶理财车的进度、通俗比喻以及遗留任务，处于 M2 到 M3 的过渡阶段。

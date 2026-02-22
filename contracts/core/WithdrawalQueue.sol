@@ -20,6 +20,7 @@ contract WithdrawalQueue {
 
     uint256 public nextRequestId;
     mapping(uint256 => Request) public requests;
+    uint256 private reentrancyLock;
 
     event WithdrawRequested(address indexed caller, uint256 indexed requestId, uint256 shares);
     event WithdrawClaimed(
@@ -30,6 +31,13 @@ contract WithdrawalQueue {
         uint256 bounty
     );
 
+    modifier nonReentrant() {
+        require(reentrancyLock == 0, "REENTRANCY");
+        reentrancyLock = 1;
+        _;
+        reentrancyLock = 0;
+    }
+
     constructor(EngineVault vault_, IERC20 asset_, uint16 claimBountyBps_, uint16 maxClaimBountyBps_) {
         vault = vault_;
         asset = asset_;
@@ -37,11 +45,11 @@ contract WithdrawalQueue {
         maxClaimBountyBps = maxClaimBountyBps_;
     }
 
-    function requestWithdraw(uint256 shares, address receiver) external returns (uint256 requestId) {
+    function requestWithdraw(uint256 shares, address receiver) external nonReentrant returns (uint256 requestId) {
         require(shares > 0, "ZERO_SHARES");
         require(receiver != address(0), "ZERO_RECEIVER");
 
-        vault.transferFrom(msg.sender, address(this), shares);
+        require(vault.transferFrom(msg.sender, address(this), shares), "TRANSFER_SHARES");
         requestId = nextRequestId++;
         requests[requestId] =
             Request({receiver: receiver, shares: shares, claimedShares: 0, requestedAt: block.timestamp, closed: false});
@@ -49,7 +57,7 @@ contract WithdrawalQueue {
         emit WithdrawRequested(msg.sender, requestId, shares);
     }
 
-    function claimWithdraw(uint256 requestId) external {
+    function claimWithdraw(uint256 requestId) external nonReentrant {
         Request storage req = requests[requestId];
         require(!req.closed, "CLOSED");
         require(req.shares > 0, "INVALID_REQUEST");
@@ -81,15 +89,15 @@ contract WithdrawalQueue {
         uint256 bounty = _calculateClaimBounty(assetsReceived);
         uint256 toReceiver = assetsReceived - bounty;
 
-        if (bounty > 0) {
-            require(asset.transfer(msg.sender, bounty), "BOUNTY_TRANSFER");
-        }
-        require(asset.transfer(req.receiver, toReceiver), "RECEIVER_TRANSFER");
-
         req.claimedShares += sharesToRedeem;
         if (req.claimedShares >= req.shares) {
             req.closed = true;
         }
+
+        if (bounty > 0) {
+            require(asset.transfer(msg.sender, bounty), "BOUNTY_TRANSFER");
+        }
+        require(asset.transfer(req.receiver, toReceiver), "RECEIVER_TRANSFER");
 
         emit WithdrawClaimed(msg.sender, requestId, sharesToRedeem, assetsReceived, bounty);
 

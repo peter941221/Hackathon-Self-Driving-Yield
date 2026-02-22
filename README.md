@@ -80,6 +80,8 @@ User (USDT)
 
 - Threat model: `THREAT_MODEL.md`
 
+- Demo runbook: `docs/DEMO_SCRIPT.md`
+
 
 ## Quickstart (Foundry)
 

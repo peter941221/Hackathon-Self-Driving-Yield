@@ -25,7 +25,7 @@ library Aster1001xAdapter {
             broker: 0
         });
 
-        IERC20(tokenIn).approve(diamond, marginAmount);
+        require(IERC20(tokenIn).approve(diamond, marginAmount), "APPROVE");
         IAsterDiamond(diamond).openMarketTrade(data);
     }
 
@@ -34,7 +34,7 @@ library Aster1001xAdapter {
     }
 
     function addMargin(address diamond, bytes32 tradeHash, address tokenIn, uint96 amount) internal {
-        IERC20(tokenIn).approve(diamond, amount);
+        require(IERC20(tokenIn).approve(diamond, amount), "APPROVE");
         IAsterDiamond(diamond).addMargin(tradeHash, amount);
     }
 

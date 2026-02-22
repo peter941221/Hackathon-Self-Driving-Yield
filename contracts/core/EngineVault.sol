@@ -6,12 +6,12 @@ import {VolatilityOracle} from "./VolatilityOracle.sol";
 import {AsterAlpAdapter} from "../adapters/AsterAlpAdapter.sol";
 import {Aster1001xAdapter} from "../adapters/Aster1001xAdapter.sol";
 import {PancakeV2Adapter} from "../adapters/PancakeV2Adapter.sol";
-import {FlashRebalancer} from "../adapters/FlashRebalancer.sol";
+import {FlashRebalancer, IFlashRebalanceHook} from "../adapters/FlashRebalancer.sol";
 import {PancakeLibrary} from "../libs/PancakeLibrary.sol";
 import {MathLib} from "../libs/MathLib.sol";
 import {ITradingReader} from "../interfaces/ITradingReader.sol";
 
-contract EngineVault {
+contract EngineVault is IFlashRebalanceHook {
     using MathLib for uint256;
 
     IERC20 public immutable asset;
@@ -49,6 +49,7 @@ contract EngineVault {
     bool private inFlashRebalance;
     address public flashBorrowedToken;
     uint256 public flashBorrowedAmount;
+    uint256 private reentrancyLock;
 
     enum RiskMode {
         NORMAL,
@@ -71,6 +72,13 @@ contract EngineVault {
     event RegimeSwitched(VolatilityOracle.Regime oldRegime, VolatilityOracle.Regime newRegime, uint256 volatilityBps);
     event RiskModeChanged(RiskMode oldMode, RiskMode newMode);
     event RebalancePlanned(int256 alpDelta, int256 lpDelta, uint256 totalValue);
+
+    modifier nonReentrant() {
+        require(reentrancyLock == 0, "REENTRANCY");
+        reentrancyLock = 1;
+        _;
+        reentrancyLock = 0;
+    }
 
     struct Addresses {
         IERC20 asset;
@@ -158,7 +166,7 @@ contract EngineVault {
         return true;
     }
 
-    function deposit(uint256 assets, address receiver) external returns (uint256 shares) {
+    function deposit(uint256 assets, address receiver) external nonReentrant returns (uint256 shares) {
         require(assets > 0, "ZERO_ASSETS");
         shares = previewDeposit(assets);
         require(shares > 0, "ZERO_SHARES");
@@ -170,7 +178,7 @@ contract EngineVault {
         emit Deposit(msg.sender, receiver, assets, shares);
     }
 
-    function redeem(uint256 shares, address receiver, address owner) external returns (uint256 assets) {
+    function redeem(uint256 shares, address receiver, address owner) external nonReentrant returns (uint256 assets) {
         require(shares > 0, "ZERO_SHARES");
         if (msg.sender != owner) {
             uint256 allowed = allowance[owner][msg.sender];
@@ -205,7 +213,7 @@ contract EngineVault {
         return supply == 0 || total == 0 ? 0 : (shares * total) / supply;
     }
 
-    function cycle() external {
+    function cycle() external nonReentrant {
         require(block.timestamp >= lastCycleTimestamp + minCycleInterval, "CYCLE_INTERVAL");
 
         _updateRegime();
@@ -225,11 +233,12 @@ contract EngineVault {
 
     function onFlashRebalance(address tokenBorrowed, address repayToken, uint256 borrowedAmount, uint256 repayAmount)
         external
+        nonReentrant
     {
         require(msg.sender == flashRebalancer, "ONLY_REBALANCER");
         require(tokenBorrowed != address(0), "ZERO_BORROW");
         if (!enableExternalCalls) {
-            IERC20(repayToken).transfer(msg.sender, repayAmount);
+            require(IERC20(repayToken).transfer(msg.sender, repayAmount), "FLASH_REPAY");
             return;
         }
 
@@ -245,10 +254,10 @@ contract EngineVault {
         flashBorrowedAmount = 0;
 
         _ensureRepayToken(repayToken, repayAmount);
-        IERC20(repayToken).transfer(msg.sender, repayAmount);
+        require(IERC20(repayToken).transfer(msg.sender, repayAmount), "FLASH_REPAY");
     }
 
-    function unwindForWithdraw(uint256) external {
+    function unwindForWithdraw(uint256) external nonReentrant {
         if (!enableExternalCalls) {
             return;
         }
@@ -295,7 +304,7 @@ contract EngineVault {
     }
 
     function _circuitBreakerCheck() internal {
-        bool triggered;
+        bool triggered = false;
 
         if (asterDiamond != address(0)) {
             uint256 nav = AsterAlpAdapter.getAlpNAV(asterDiamond);
@@ -636,7 +645,7 @@ contract EngineVault {
         uint256 profitBounty = (profitSinceLastCycle * profitBountyBps) / 10000;
 
         uint256 gasPriceUsed = tx.gasprice > maxGasPrice ? maxGasPrice : tx.gasprice;
-        uint256 minBounty;
+        uint256 minBounty = 0;
         uint256 bnbPrice = _getBnbPrice1e18();
         if (bnbPrice > 0) {
             uint256 estimatedGas = 500_000;
