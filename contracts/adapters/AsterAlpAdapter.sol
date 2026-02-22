@@ -27,7 +27,11 @@ library AsterAlpAdapter {
 
     function canBurn(address diamond) internal view returns (bool) {
         uint256 cooldown = IAsterDiamond(diamond).coolingDuration();
-        uint256 lastMint = IAsterDiamond(diamond).lastMintedTimestamp();
+        (bool ok, bytes memory data) = diamond.staticcall(abi.encodeWithSignature("lastMintedTimestamp()"));
+        if (!ok || data.length < 32) {
+            return false;
+        }
+        uint256 lastMint = abi.decode(data, (uint256));
         return block.timestamp >= lastMint + cooldown;
     }
 

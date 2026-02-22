@@ -5,7 +5,7 @@ import {IDiamondLoupe} from "../contracts/interfaces/IDiamondLoupe.sol";
 
 contract LouperDump is Script {
     function run() external view {
-        address diamond = vm.envOr("ASTER_DIAMOND", address(0x1b6f2d3844c6ae7d56ceb3c3643b9060ba28feb0));
+        address diamond = vm.envOr("ASTER_DIAMOND", address(0x1b6F2d3844C6ae7D56ceb3C3643b9060ba28FEb0));
         IDiamondLoupe loupe = IDiamondLoupe(diamond);
 
         address[] memory facets = loupe.facetAddresses();

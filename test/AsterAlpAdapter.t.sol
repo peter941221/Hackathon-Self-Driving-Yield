@@ -15,7 +15,7 @@ contract AsterAlpAdapterHarness {
 }
 
 contract AsterAlpAdapterTest is Test {
-    address internal constant DIAMOND = 0x1b6f2d3844c6ae7d56ceb3c3643b9060ba28feb0;
+    address internal constant DIAMOND = 0x1b6F2d3844C6ae7D56ceb3C3643b9060ba28FEb0;
 
     AsterAlpAdapterHarness internal harness;
 

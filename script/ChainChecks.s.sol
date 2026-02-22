@@ -7,7 +7,7 @@ import {IAsterDiamond} from "../contracts/interfaces/IAsterDiamond.sol";
 
 contract ChainChecks is Script {
     function run() external view {
-        address diamond = vm.envOr("ASTER_DIAMOND", address(0x1b6f2d3844c6ae7d56ceb3c3643b9060ba28feb0));
+        address diamond = vm.envOr("ASTER_DIAMOND", address(0x1b6F2d3844C6ae7D56ceb3C3643b9060ba28FEb0));
         address factory = vm.envOr("PANCAKE_FACTORY", address(0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73));
         address btcb = vm.envOr("BTCB", address(0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c));
         address usdt = vm.envOr("USDT", address(0x55d398326f99059fF775485246999027B3197955));
@@ -27,6 +27,12 @@ contract ChainChecks is Script {
         address alp = IAsterDiamond(diamond).ALP();
         console2.log("ALP", alp);
         console2.log("Cooldown", IAsterDiamond(diamond).coolingDuration());
-        console2.log("LastMint", IAsterDiamond(diamond).lastMintedTimestamp());
+
+        (bool ok, bytes memory data) = diamond.staticcall(abi.encodeWithSignature("lastMintedTimestamp()"));
+        if (ok && data.length >= 32) {
+            console2.log("LastMint", abi.decode(data, (uint256)));
+        } else {
+            console2.log("LastMint", uint256(0));
+        }
     }
 }

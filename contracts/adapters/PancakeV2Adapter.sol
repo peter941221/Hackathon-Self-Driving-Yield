@@ -43,7 +43,7 @@ library PancakeV2Adapter {
         address pair = IPancakeFactoryV2(FACTORY).getPair(tokenA, tokenB);
         IERC20(pair).approve(ROUTER, liquidity);
 
-        (uint256 expectedA, uint256 expectedB) = getUnderlyingAmountsForTokens(pair, address(this), tokenA, tokenB);
+        (uint256 expectedA, uint256 expectedB) = getUnderlyingAmountsForTokens(pair, address(this), tokenA);
         uint256 minA = (expectedA * (10000 - slippageBps)) / 10000;
         uint256 minB = (expectedB * (10000 - slippageBps)) / 10000;
 
@@ -72,8 +72,7 @@ library PancakeV2Adapter {
     function getUnderlyingAmountsForTokens(
         address pair,
         address account,
-        address tokenA,
-        address tokenB
+        address tokenA
     ) internal view returns (uint256 amtA, uint256 amtB) {
         (uint256 amt0, uint256 amt1) = getUnderlyingAmounts(pair, account);
         address token0 = IPancakePairV2(pair).token0();

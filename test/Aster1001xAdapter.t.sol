@@ -4,7 +4,7 @@ import {Test} from "forge-std/Test.sol";
 import {Aster1001xAdapter} from "../contracts/adapters/Aster1001xAdapter.sol";
 
 contract Aster1001xAdapterTest is Test {
-    address internal constant DIAMOND = 0x1b6f2d3844c6ae7d56ceb3c3643b9060ba28feb0;
+    address internal constant DIAMOND = 0x1b6F2d3844C6ae7D56ceb3C3643b9060ba28FEb0;
 
     function testUsdToQty() public {
         uint256 qty = Aster1001xAdapter.usdToQty(100e18, 25_000e8);
