@@ -36,4 +36,6 @@
 - 新增 `test/EngineVaultRiskMode.t.sol`，覆盖 ONLY_UNWIND 负向测试；README 增加负向测试命令。
 - 完成经济模型增强: `ECONOMICS.md` 增加输入/公式/敏感性输出模板；新增 `docs/DEMO_SCRIPT.md`。
 - 代码质量: 运行 slither (排除依赖) 与 forge test/format；修复 unchecked transfer 与 reentrancy guard；仍有 timestamp/strict equality 等 warnings。
+- 新增 `docs/DEMO_SCRIPT.md` 与 `ECONOMICS.md` 公式/模板扩展；THREAT_MODEL 更新 reentrancy 说明。
+- 添加 nonReentrant 到 EngineVault/WithdrawalQueue 与 transfer/approve require；Slither 仍有 divide-before-multiply / strict equality / timestamp 等警告。
 - 运行 `/update_plan`：向用户汇报了当前自动驾驶理财车的进度、通俗比喻以及遗留任务，处于 M2 到 M3 的过渡阶段。
