@@ -78,6 +78,8 @@ User (USDT)
 
 - Fork demo script: `script/ForkCycleDemo.s.sol`
 
+- Threat model: `THREAT_MODEL.md`
+
 
 ## Quickstart (Foundry)
 
@@ -85,6 +87,18 @@ User (USDT)
 forge build
 forge test
 forge fmt
+```
+
+Invariant tests:
+
+```bash
+forge test --match-path test/Invariant.t.sol
+```
+
+Negative tests:
+
+```bash
+forge test --match-path test/EngineVaultRiskMode.t.sol
 ```
 
 

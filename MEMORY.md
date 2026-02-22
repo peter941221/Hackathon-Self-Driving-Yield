@@ -31,4 +31,7 @@
 - 修复 LP addLiquidity 最优配比逻辑，避免 PancakeRouter: INSUFFICIENT_A_AMOUNT。
 - ForkCycleDemo 已启用外部调用与 LP 配置，swap + addLiquidity 在 fork 上可执行（Hedge 尝试因权限/余额失败）。
 - 施工计划更新：标记 M0-M4 完成，补充测试通过与未完成项。
+- 新增 `THREAT_MODEL.md` 威胁建模文档；README 增加文档索引与不变量测试命令。
+- 新增 `test/Invariant.t.sol` 并通过不变量测试；施工计划 Part10/Part11 同步更新。
+- 新增 `test/EngineVaultRiskMode.t.sol`，覆盖 ONLY_UNWIND 负向测试；README 增加负向测试命令。
 - 运行 `/update_plan`：向用户汇报了当前自动驾驶理财车的进度、通俗比喻以及遗留任务，处于 M2 到 M3 的过渡阶段。
