@@ -28,8 +28,7 @@ contract Aster1001xAdapterTest is Test {
         if (!ok) {
             return;
         }
-        (bytes32[] memory tradeHashes, uint256 totalQty) = Aster1001xAdapter.getPositions(DIAMOND, address(this), BTCB);
-        assertEq(tradeHashes.length, 0);
+        uint256 totalQty = Aster1001xAdapter.getHedgeBaseQty(DIAMOND, address(this), BTCB);
         assertEq(totalQty, 0);
     }
 }

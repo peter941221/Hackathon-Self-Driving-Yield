@@ -5,7 +5,8 @@ import {IPancakePairV2} from "../interfaces/IPancakePairV2.sol";
 import {PancakeLibrary} from "../libs/PancakeLibrary.sol";
 
 interface IFlashRebalanceHook {
-    function onFlashRebalance(address tokenBorrowed, uint256 repayAmount) external;
+    function onFlashRebalance(address tokenBorrowed, address repayToken, uint256 borrowedAmount, uint256 repayAmount)
+        external;
 }
 
 contract FlashRebalancer {
@@ -43,15 +44,16 @@ contract FlashRebalancer {
 
         address tokenBorrowed = params.borrowToken0 ? token0 : token1;
         uint256 borrowed = params.borrowToken0 ? amount0 : amount1;
-        uint256 repayAmount = _calculateRepayAmount(borrowed);
+
+        address repayToken = params.borrowToken0 ? token1 : token0;
+        address[] memory path = new address[](2);
+        path[0] = repayToken;
+        path[1] = tokenBorrowed;
+        uint256 repayAmount = PancakeLibrary.getAmountsIn(factory, borrowed, path)[0];
 
         IERC20(tokenBorrowed).transfer(vault, borrowed);
-        IFlashRebalanceHook(vault).onFlashRebalance(tokenBorrowed, repayAmount);
+        IFlashRebalanceHook(vault).onFlashRebalance(tokenBorrowed, repayToken, borrowed, repayAmount);
 
-        IERC20(tokenBorrowed).transfer(msg.sender, repayAmount);
-    }
-
-    function _calculateRepayAmount(uint256 amountOut) internal pure returns (uint256) {
-        return (amountOut * 1000) / 998 + 1;
+        IERC20(repayToken).transfer(msg.sender, repayAmount);
     }
 }

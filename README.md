@@ -22,7 +22,11 @@ An autonomous, non-custodial yield engine for BNB Chain that combines AsterDEX E
 
 - Flash rebalance computes a borrow amount from LP deviation and caps it to 10% of reserves.
 
-- 1001x position size relies on `getPositionsV2(address,address)` totalQty (reader facet).
+- Flash callbacks repay in the opposite token using on-chain reserves.
+
+- Borrowed flash amounts are excluded from target allocation calculations.
+
+- 1001x position size sums short `qty` from `getPositionsV2(address,address)` (reader facet).
 
 
 ## Architecture (High-Level)
@@ -71,6 +75,8 @@ User (USDT)
 - Implementation Plan: `施工计划.MD`
 
 - Louper Selector Map: `docs/LOUPER_MAP.md`
+
+- Fork demo script: `script/ForkCycleDemo.s.sol`
 
 
 ## Quickstart (Foundry)

@@ -2,6 +2,7 @@ pragma solidity ^0.8.24;
 
 import {IERC20} from "../interfaces/IERC20.sol";
 import {IAsterDiamond} from "../interfaces/IAsterDiamond.sol";
+import {ITradingReader} from "../interfaces/ITradingReader.sol";
 
 library Aster1001xAdapter {
     function openShort(
@@ -40,12 +41,9 @@ library Aster1001xAdapter {
     function getPositions(address diamond, address account, address pairBase)
         internal
         view
-        returns (bytes32[] memory tradeHashes, uint256 totalQty)
+        returns (ITradingReader.Position[] memory positions)
     {
-        (bool ok, bytes memory data) =
-            diamond.staticcall(abi.encodeWithSignature("getPositionsV2(address,address)", account, pairBase));
-        require(ok, "READER_CALL_FAIL");
-        (tradeHashes, totalQty) = abi.decode(data, (bytes32[], uint256));
+        positions = ITradingReader(diamond).getPositionsV2(account, pairBase);
     }
 
     function getHedgeBaseQty(address diamond, address account, address pairBase)
@@ -53,8 +51,12 @@ library Aster1001xAdapter {
         view
         returns (uint256 baseQty)
     {
-        (, uint256 totalQty) = getPositions(diamond, account, pairBase);
-        baseQty = totalQty;
+        ITradingReader.Position[] memory positions = getPositions(diamond, account, pairBase);
+        for (uint256 i = 0; i < positions.length; i++) {
+            if (!positions[i].isLong) {
+                baseQty += positions[i].qty;
+            }
+        }
     }
 
     function usdToQty(uint256 usdAmount, uint256 price1e8) internal pure returns (uint256 qty1e10) {

@@ -9,6 +9,7 @@ import {PancakeV2Adapter} from "../adapters/PancakeV2Adapter.sol";
 import {FlashRebalancer} from "../adapters/FlashRebalancer.sol";
 import {PancakeLibrary} from "../libs/PancakeLibrary.sol";
 import {MathLib} from "../libs/MathLib.sol";
+import {ITradingReader} from "../interfaces/ITradingReader.sol";
 
 contract EngineVault {
     using MathLib for uint256;
@@ -46,6 +47,8 @@ contract EngineVault {
     uint256 public lastKnownNav;
     uint8 public safeCycleCount;
     bool private inFlashRebalance;
+    address public flashBorrowedToken;
+    uint256 public flashBorrowedAmount;
 
     enum RiskMode {
         NORMAL,
@@ -220,21 +223,29 @@ contract EngineVault {
         emit CycleExecuted(msg.sender, currentRegime, bounty, block.timestamp);
     }
 
-    function onFlashRebalance(address tokenBorrowed, uint256 repayAmount) external {
+    function onFlashRebalance(address tokenBorrowed, address repayToken, uint256 borrowedAmount, uint256 repayAmount)
+        external
+    {
         require(msg.sender == flashRebalancer, "ONLY_REBALANCER");
+        require(tokenBorrowed != address(0), "ZERO_BORROW");
         if (!enableExternalCalls) {
-            IERC20(tokenBorrowed).transfer(msg.sender, repayAmount);
+            IERC20(repayToken).transfer(msg.sender, repayAmount);
             return;
         }
 
         inFlashRebalance = true;
+        flashBorrowedToken = tokenBorrowed;
+        flashBorrowedAmount = borrowedAmount;
+        _removeAllLp();
         _rebalanceAssets();
         _rebalanceHedge();
         inFlashRebalance = false;
 
-        uint256 balance = IERC20(tokenBorrowed).balanceOf(address(this));
-        require(balance >= repayAmount, "FLASH_REPAY");
-        IERC20(tokenBorrowed).transfer(msg.sender, repayAmount);
+        flashBorrowedToken = address(0);
+        flashBorrowedAmount = 0;
+
+        _ensureRepayToken(repayToken, repayAmount);
+        IERC20(repayToken).transfer(msg.sender, repayAmount);
     }
 
     function unwindForWithdraw(uint256) external {
@@ -242,9 +253,10 @@ contract EngineVault {
             return;
         }
         if (asterDiamond != address(0) && pairBase != address(0)) {
-            (bytes32[] memory tradeHashes,) = Aster1001xAdapter.getPositions(asterDiamond, address(this), pairBase);
-            for (uint256 i = 0; i < tradeHashes.length; i++) {
-                Aster1001xAdapter.closeTrade(asterDiamond, tradeHashes[i]);
+            ITradingReader.Position[] memory positions =
+                Aster1001xAdapter.getPositions(asterDiamond, address(this), pairBase);
+            for (uint256 i = 0; i < positions.length; i++) {
+                Aster1001xAdapter.closeTrade(asterDiamond, positions[i].positionHash);
             }
         }
 
@@ -339,7 +351,10 @@ contract EngineVault {
         int256 alpDelta = int256(targetAlpValue) - int256(alpValue);
         int256 lpDelta = int256(targetLpValue) - int256(lpValue);
 
-        uint256 deviationBps = MathLib.absDiff(targetAlpValue, alpValue) * 10000 / totalValue;
+        uint256 alpDeviation = MathLib.absDiff(targetAlpValue, alpValue);
+        uint256 lpDeviation = MathLib.absDiff(targetLpValue, lpValue);
+        uint256 deviation = alpDeviation > lpDeviation ? alpDeviation : lpDeviation;
+        uint256 deviationBps = deviation * 10000 / totalValue;
         if (deviationBps < rebalanceThresholdBps) {
             return;
         }
@@ -360,7 +375,10 @@ contract EngineVault {
             return;
         }
 
-        if (!inFlashRebalance && flashRebalancer != address(0) && currentRegime == VolatilityOracle.Regime.STORM) {
+        if (
+            enableExternalCalls && !inFlashRebalance && flashRebalancer != address(0)
+                && currentRegime == VolatilityOracle.Regime.STORM
+        ) {
             uint256 borrowAmount = _calcFlashBorrowAmount(lpDelta, totalValue);
             if (borrowAmount > 0) {
                 FlashRebalancer(flashRebalancer).executeFlashRebalance(
@@ -407,9 +425,10 @@ contract EngineVault {
                 Aster1001xAdapter.openShort(asterDiamond, pairBase, address(asset), margin, deltaQty, price1e8);
             }
         } else if (hedgeQty1e10 > lpBaseQty1e10 + band) {
-            (bytes32[] memory tradeHashes,) = Aster1001xAdapter.getPositions(asterDiamond, address(this), pairBase);
-            for (uint256 i = 0; i < tradeHashes.length; i++) {
-                Aster1001xAdapter.closeTrade(asterDiamond, tradeHashes[i]);
+            ITradingReader.Position[] memory positions =
+                Aster1001xAdapter.getPositions(asterDiamond, address(this), pairBase);
+            for (uint256 i = 0; i < positions.length; i++) {
+                Aster1001xAdapter.closeTrade(asterDiamond, positions[i].positionHash);
             }
         }
     }
@@ -490,6 +509,22 @@ contract EngineVault {
         if (quoteToUse == 0 || baseToUse == 0) {
             return;
         }
+
+        (uint256 reserveBase, uint256 reserveQuote) = PancakeLibrary.getReserves(pancakeFactory, pairBase, pairQuote);
+        if (reserveBase > 0 && reserveQuote > 0) {
+            uint256 quoteOptimal = PancakeLibrary.quote(baseToUse, reserveBase, reserveQuote);
+            if (quoteOptimal <= quoteToUse) {
+                quoteToUse = quoteOptimal;
+            } else {
+                uint256 baseOptimal = PancakeLibrary.quote(quoteToUse, reserveQuote, reserveBase);
+                baseToUse = baseOptimal;
+            }
+        }
+
+        if (quoteToUse == 0 || baseToUse == 0) {
+            return;
+        }
+
         PancakeV2Adapter.addLiquidity(pairBase, pairQuote, baseToUse, quoteToUse, swapSlippageBps);
     }
 
@@ -516,6 +551,17 @@ contract EngineVault {
         PancakeV2Adapter.removeLiquidity(pairBase, pairQuote, liquidityToRemove, swapSlippageBps);
     }
 
+    function _removeAllLp() internal {
+        if (v2Pair == address(0) || pairBase == address(0) || pairQuote == address(0)) {
+            return;
+        }
+        uint256 lpBal = IERC20(v2Pair).balanceOf(address(this));
+        if (lpBal == 0) {
+            return;
+        }
+        PancakeV2Adapter.removeLiquidity(pairBase, pairQuote, lpBal, swapSlippageBps);
+    }
+
     function _swapQuoteToBase(uint256 amountIn) internal returns (uint256 amountOut) {
         if (pancakeFactory == address(0) || pairBase == address(0) || pairQuote == address(0)) {
             return 0;
@@ -534,6 +580,31 @@ contract EngineVault {
         uint256 expectedOut = PancakeLibrary.getAmountOut(amountIn, reserveIn, reserveOut);
         uint256 minOut = expectedOut * (10000 - swapSlippageBps) / 10000;
         amountOut = PancakeV2Adapter.swapExactTokensForTokens(pairBase, pairQuote, amountIn, minOut);
+    }
+
+    function _swapForExact(address tokenIn, address tokenOut, uint256 amountOut) internal returns (uint256 amountIn) {
+        if (pancakeFactory == address(0)) {
+            return 0;
+        }
+        (uint256 reserveIn, uint256 reserveOut) = PancakeLibrary.getReserves(pancakeFactory, tokenIn, tokenOut);
+        amountIn = PancakeLibrary.getAmountIn(amountOut, reserveIn, reserveOut);
+        PancakeV2Adapter.swapExactTokensForTokens(tokenIn, tokenOut, amountIn, amountOut);
+    }
+
+    function _ensureRepayToken(address repayToken, uint256 repayAmount) internal {
+        uint256 balance = IERC20(repayToken).balanceOf(address(this));
+        if (balance >= repayAmount) {
+            return;
+        }
+
+        uint256 shortfall = repayAmount - balance;
+        if (repayToken == pairQuote && pairBase != address(0)) {
+            _swapForExact(pairBase, pairQuote, shortfall);
+        } else if (repayToken == pairBase && pairQuote != address(0)) {
+            _swapForExact(pairQuote, pairBase, shortfall);
+        }
+
+        require(IERC20(repayToken).balanceOf(address(this)) >= repayAmount, "FLASH_REPAY");
     }
 
     function _calcFlashBorrowAmount(int256 lpDelta, uint256 totalValue) internal view returns (uint256 borrowAmount) {
@@ -600,6 +671,13 @@ contract EngineVault {
 
         uint256 quoteBalance = asset.balanceOf(address(this));
         uint256 baseBalance = pairBase == address(0) ? 0 : IERC20(pairBase).balanceOf(address(this));
+        if (flashBorrowedAmount > 0) {
+            if (flashBorrowedToken == pairQuote) {
+                quoteBalance = quoteBalance > flashBorrowedAmount ? quoteBalance - flashBorrowedAmount : 0;
+            } else if (flashBorrowedToken == pairBase) {
+                baseBalance = baseBalance > flashBorrowedAmount ? baseBalance - flashBorrowedAmount : 0;
+            }
+        }
         uint256 baseValueCash = basePrice == 0 ? 0 : (baseBalance * basePrice) / 1e18;
         cashValue = quoteBalance + baseValueCash;
     }

@@ -24,4 +24,11 @@
 - 完成 swap/flash/仓位解码: EngineVault 增加 swap 逻辑与 flash 借款量计算；FlashRebalancer 增加 vault 回调；1001x 使用 getPositionsV2(address,address) totalQty 作为对冲基数。
 - README 增补 Implementation Notes（swap/flash/reader 说明）。
 - 运行 `forge test` (BSC RPC): 11 tests 全绿（无失败）。
+- 引入 `ITradingReader.Position` 解码并据此汇总 short qty；EngineVault 调整为 positionHash 批量平仓。
+- Flash 回调改为“对端币种偿还”，使用 reserves 计算 repayAmount 并在 vault 内确保兑换补足。
+- 新增 `script/ForkCycleDemo.s.sol` 并已运行 fork demo：Shares 与 Regime/TotalAssets 打印成功。
+- 运行 `forge test` (BSC RPC): 11 tests 全绿；运行 `forge script script/ForkCycleDemo.s.sol` 成功。
+- 修复 LP addLiquidity 最优配比逻辑，避免 PancakeRouter: INSUFFICIENT_A_AMOUNT。
+- ForkCycleDemo 已启用外部调用与 LP 配置，swap + addLiquidity 在 fork 上可执行（Hedge 尝试因权限/余额失败）。
+- 施工计划更新：标记 M0-M4 完成，补充测试通过与未完成项。
 - 运行 `/update_plan`：向用户汇报了当前自动驾驶理财车的进度、通俗比喻以及遗留任务，处于 M2 到 M3 的过渡阶段。
