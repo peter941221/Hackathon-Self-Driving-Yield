@@ -9,6 +9,14 @@ contract MockPair {
     uint256 public price0CumulativeLast;
     uint256 public price1CumulativeLast;
 
+    function balanceOf(address) external pure returns (uint256) {
+        return 0;
+    }
+
+    function totalSupply() external pure returns (uint256) {
+        return 0;
+    }
+
     constructor(address token0_, address token1_) {
         token0 = token0_;
         token1 = token1_;

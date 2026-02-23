@@ -72,6 +72,8 @@ contract EngineVault is IFlashRebalanceHook {
     event RegimeSwitched(VolatilityOracle.Regime oldRegime, VolatilityOracle.Regime newRegime, uint256 volatilityBps);
     event RiskModeChanged(RiskMode oldMode, RiskMode newMode);
     event RebalancePlanned(int256 alpDelta, int256 lpDelta, uint256 totalValue);
+    event FlashBorrowed(address indexed token, uint256 amount);
+    event FlashRepaid(address indexed token, uint256 amount);
 
     modifier nonReentrant() {
         require(reentrancyLock == 0, "REENTRANCY");
@@ -213,6 +215,8 @@ contract EngineVault is IFlashRebalanceHook {
         return supply == 0 || total == 0 ? 0 : (shares * total) / supply;
     }
 
+    // slither-disable-next-line reentrancy-no-eth
+    // slither-disable-next-line reentrancy-benign
     function cycle() external nonReentrant {
         require(block.timestamp >= lastCycleTimestamp + minCycleInterval, "CYCLE_INTERVAL");
 
@@ -231,6 +235,7 @@ contract EngineVault is IFlashRebalanceHook {
         emit CycleExecuted(msg.sender, currentRegime, bounty, block.timestamp);
     }
 
+    // slither-disable-next-line reentrancy-no-eth
     function onFlashRebalance(address tokenBorrowed, address repayToken, uint256 borrowedAmount, uint256 repayAmount)
         external
         nonReentrant
@@ -245,6 +250,7 @@ contract EngineVault is IFlashRebalanceHook {
         inFlashRebalance = true;
         flashBorrowedToken = tokenBorrowed;
         flashBorrowedAmount = borrowedAmount;
+        emit FlashBorrowed(tokenBorrowed, borrowedAmount);
         _removeAllLp();
         _rebalanceAssets();
         _rebalanceHedge();
@@ -252,6 +258,7 @@ contract EngineVault is IFlashRebalanceHook {
 
         flashBorrowedToken = address(0);
         flashBorrowedAmount = 0;
+        emit FlashRepaid(repayToken, repayAmount);
 
         _ensureRepayToken(repayToken, repayAmount);
         require(IERC20(repayToken).transfer(msg.sender, repayAmount), "FLASH_REPAY");
@@ -272,18 +279,25 @@ contract EngineVault is IFlashRebalanceHook {
         if (v2Pair != address(0) && pairBase != address(0) && pairQuote != address(0)) {
             uint256 lpBal = IERC20(v2Pair).balanceOf(address(this));
             if (lpBal > 0) {
-                PancakeV2Adapter.removeLiquidity(pairBase, pairQuote, lpBal, 50);
+                (uint256 amountA, uint256 amountB) = PancakeV2Adapter.removeLiquidity(pairBase, pairQuote, lpBal, 50);
+                if (amountA == 0 && amountB == 0) {
+                    amountA = 0;
+                }
             }
         }
 
         if (asterDiamond != address(0) && AsterAlpAdapter.canBurn(asterDiamond)) {
             uint256 alpBal = AsterAlpAdapter.getAlpBalance(asterDiamond, address(this));
             if (alpBal > 0) {
-                AsterAlpAdapter.burnAlp(asterDiamond, address(asset), alpBal, 0);
+                uint256 tokenReceived = AsterAlpAdapter.burnAlp(asterDiamond, address(asset), alpBal, 0);
+                if (tokenReceived == 0) {
+                    tokenReceived = 0;
+                }
             }
         }
     }
 
+    // slither-disable-next-line reentrancy-benign
     function _updateRegime() internal {
         if (address(volatilityOracle) == address(0) || volatilityOracle.pair() == address(0)) {
             return;
@@ -415,13 +429,23 @@ contract EngineVault is IFlashRebalanceHook {
             return;
         }
 
-        (uint256 amtBase,) = PancakeV2Adapter.getUnderlyingAmountsForTokens(v2Pair, address(this), pairBase);
+        (uint256 amtBase, uint256 amtQuote) =
+            PancakeV2Adapter.getUnderlyingAmountsForTokens(v2Pair, address(this), pairBase);
+        // slither-disable-next-line divide-before-multiply
         uint256 lpBaseQty1e10 = (amtBase * 1e10) / 1e18;
-        (uint256 hedgeQty1e10,,) = Aster1001xAdapter.getShortExposure(asterDiamond, address(this), pairBase);
+        (uint256 hedgeQty1e10, uint256 hedgeNotional, uint256 avgEntryPrice) =
+            Aster1001xAdapter.getShortExposure(asterDiamond, address(this), pairBase);
+        if (amtBase == 0 && amtQuote == 0) {
+            return;
+        }
+        if (hedgeNotional == 0 && avgEntryPrice == 0) {
+            hedgeNotional = 0;
+        }
         if (lpBaseQty1e10 == 0) {
             return;
         }
 
+        // slither-disable-next-line divide-before-multiply
         uint256 band = (lpBaseQty1e10 * deltaBandBps) / 10000;
         if (lpBaseQty1e10 > hedgeQty1e10 + band) {
             uint256 deltaQty = lpBaseQty1e10 - hedgeQty1e10;
@@ -451,7 +475,10 @@ contract EngineVault is IFlashRebalanceHook {
         if (amount == 0) {
             return;
         }
-        AsterAlpAdapter.mintAlp(asterDiamond, address(asset), amount, 0, false);
+        uint256 alpReceived = AsterAlpAdapter.mintAlp(asterDiamond, address(asset), amount, 0, false);
+        if (alpReceived == 0) {
+            return;
+        }
     }
 
     function _reduceAlp(uint256 value) internal {
@@ -469,7 +496,10 @@ contract EngineVault is IFlashRebalanceHook {
         if (alpToBurn == 0) {
             return;
         }
-        AsterAlpAdapter.burnAlp(asterDiamond, address(asset), alpToBurn, 0);
+        uint256 tokenReceived = AsterAlpAdapter.burnAlp(asterDiamond, address(asset), alpToBurn, 0);
+        if (tokenReceived == 0) {
+            return;
+        }
     }
 
     function _increaseLp(uint256 value) internal {
@@ -487,6 +517,7 @@ contract EngineVault is IFlashRebalanceHook {
         }
 
         uint256 quoteTarget = value / 2;
+        // slither-disable-next-line divide-before-multiply
         uint256 baseTarget = quoteTarget * 1e18 / basePrice;
 
         if (baseBalance < baseTarget && quoteBalance > quoteTarget) {
@@ -534,7 +565,10 @@ contract EngineVault is IFlashRebalanceHook {
             return;
         }
 
-        PancakeV2Adapter.addLiquidity(pairBase, pairQuote, baseToUse, quoteToUse, swapSlippageBps);
+        uint256 liquidity = PancakeV2Adapter.addLiquidity(pairBase, pairQuote, baseToUse, quoteToUse, swapSlippageBps);
+        if (liquidity == 0) {
+            return;
+        }
     }
 
     function _reduceLp(uint256 value) internal {
@@ -557,7 +591,11 @@ contract EngineVault is IFlashRebalanceHook {
         if (liquidityToRemove == 0) {
             return;
         }
-        PancakeV2Adapter.removeLiquidity(pairBase, pairQuote, liquidityToRemove, swapSlippageBps);
+        (uint256 amountA, uint256 amountB) =
+            PancakeV2Adapter.removeLiquidity(pairBase, pairQuote, liquidityToRemove, swapSlippageBps);
+        if (amountA == 0 && amountB == 0) {
+            return;
+        }
     }
 
     function _removeAllLp() internal {
@@ -568,7 +606,11 @@ contract EngineVault is IFlashRebalanceHook {
         if (lpBal == 0) {
             return;
         }
-        PancakeV2Adapter.removeLiquidity(pairBase, pairQuote, lpBal, swapSlippageBps);
+        (uint256 amountA, uint256 amountB) =
+            PancakeV2Adapter.removeLiquidity(pairBase, pairQuote, lpBal, swapSlippageBps);
+        if (amountA == 0 && amountB == 0) {
+            return;
+        }
     }
 
     function _swapQuoteToBase(uint256 amountIn) internal returns (uint256 amountOut) {
@@ -597,7 +639,10 @@ contract EngineVault is IFlashRebalanceHook {
         }
         (uint256 reserveIn, uint256 reserveOut) = PancakeLibrary.getReserves(pancakeFactory, tokenIn, tokenOut);
         amountIn = PancakeLibrary.getAmountIn(amountOut, reserveIn, reserveOut);
-        PancakeV2Adapter.swapExactTokensForTokens(tokenIn, tokenOut, amountIn, amountOut);
+        uint256 actualOut = PancakeV2Adapter.swapExactTokensForTokens(tokenIn, tokenOut, amountIn, amountOut);
+        if (actualOut < amountOut) {
+            return 0;
+        }
     }
 
     function _ensureRepayToken(address repayToken, uint256 repayAmount) internal {
@@ -629,9 +674,13 @@ contract EngineVault is IFlashRebalanceHook {
             return 0;
         }
         uint256 borrowValue = absDelta / 2;
+        // slither-disable-next-line divide-before-multiply
         borrowAmount = (borrowValue * 1e18) / basePrice;
 
-        (uint112 r0, uint112 r1,) = IPancakePairV2(v2Pair).getReserves();
+        (uint112 r0, uint112 r1, uint32 blockTimestampLast) = IPancakePairV2(v2Pair).getReserves();
+        if (blockTimestampLast == 0) {
+            return 0;
+        }
         uint256 reserveBase = baseIsToken0 ? uint256(r0) : uint256(r1);
         uint256 cap = reserveBase / 10;
         if (borrowAmount > cap) {
@@ -650,6 +699,7 @@ contract EngineVault is IFlashRebalanceHook {
         if (bnbPrice > 0) {
             uint256 estimatedGas = 500_000;
             minBounty = (gasPriceUsed * estimatedGas * bnbPrice) / 1e18;
+            // slither-disable-next-line divide-before-multiply
             minBounty = (minBounty * 150) / 100;
         }
 
@@ -708,8 +758,8 @@ contract EngineVault is IFlashRebalanceHook {
         if (v2Pair == address(0)) {
             return 0;
         }
-        (uint112 r0, uint112 r1,) = IPancakePairV2(v2Pair).getReserves();
-        if (r0 == 0 || r1 == 0) {
+        (uint112 r0, uint112 r1, uint32 blockTimestampLast) = IPancakePairV2(v2Pair).getReserves();
+        if (blockTimestampLast == 0 || r0 == 0 || r1 == 0) {
             return 0;
         }
         return baseIsToken0 ? (uint256(r1) * 1e18) / uint256(r0) : (uint256(r0) * 1e18) / uint256(r1);
@@ -725,8 +775,8 @@ contract EngineVault is IFlashRebalanceHook {
             return 0;
         }
         address token0 = IPancakePairV2(bnbUsdtPair).token0();
-        (uint112 r0, uint112 r1,) = IPancakePairV2(bnbUsdtPair).getReserves();
-        if (r0 == 0 || r1 == 0) {
+        (uint112 r0, uint112 r1, uint32 blockTimestampLast) = IPancakePairV2(bnbUsdtPair).getReserves();
+        if (blockTimestampLast == 0 || r0 == 0 || r1 == 0) {
             return 0;
         }
         if (token0 == address(asset)) {

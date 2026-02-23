@@ -5,7 +5,6 @@ import {EngineVault} from "../contracts/core/EngineVault.sol";
 import {VolatilityOracle} from "../contracts/core/VolatilityOracle.sol";
 import {IERC20} from "../contracts/interfaces/IERC20.sol";
 import {MockPancakePair} from "./MockPancakePair.sol";
-import {MockPair} from "./MockPair.sol";
 
 contract MockERC20 {
     string public name = "Mock";
@@ -43,52 +42,29 @@ contract MockERC20 {
     }
 }
 
-contract MockAsterDiamond {
-    address public alp;
-    uint256 public nav;
+contract EngineVaultHarness is EngineVault {
+    constructor(Addresses memory addresses, Config memory config) EngineVault(addresses, config) {}
 
-    constructor(address alp_) {
-        alp = alp_;
-    }
-
-    function ALP() external view returns (address) {
-        return alp;
-    }
-
-    function alpPrice() external view returns (uint256) {
-        return nav;
-    }
-
-    function setNav(uint256 newNav) external {
-        nav = newNav;
-    }
-
-    function coolingDuration() external pure returns (uint256) {
-        return 0;
-    }
-
-    function lastMintedTimestamp(address) external pure returns (uint256) {
-        return 0;
+    function setFlashBorrowed(address token, uint256 amount) external {
+        flashBorrowedToken = token;
+        flashBorrowedAmount = amount;
     }
 }
 
-contract EngineVaultRiskModeTest is Test {
-    function testPriceDeviationTriggersOnlyUnwind() public {
+contract FlashAccountingTest is Test {
+    function testFlashBorrowedQuoteExcluded() public {
         MockERC20 asset = new MockERC20();
-        MockERC20 baseToken = new MockERC20();
-        asset.mint(address(this), 1_000e18);
+        asset.mint(address(this), 100e18);
 
-        address base = address(baseToken);
-        MockPair pair = new MockPair(base, address(asset));
-        VolatilityOracle oracle = new VolatilityOracle(address(pair), true, 60, 2);
-
-        EngineVault vault = new EngineVault(
+        MockPancakePair pair = new MockPancakePair();
+        VolatilityOracle oracle = new VolatilityOracle(address(pair), true, 60, 3);
+        EngineVaultHarness vault = new EngineVaultHarness(
             EngineVault.Addresses({
                 asset: IERC20(address(asset)),
                 asterDiamond: address(0),
                 pancakeFactory: address(0),
-                v2Pair: address(pair),
-                pairBase: base,
+                v2Pair: address(0),
+                pairBase: address(0),
                 pairQuote: address(asset),
                 bnbUsdtPair: address(0),
                 volatilityOracle: oracle,
@@ -114,45 +90,26 @@ contract EngineVaultRiskModeTest is Test {
             })
         );
 
-        asset.approve(address(vault), 100e18);
-        vault.deposit(100e18, address(this));
+        asset.transfer(address(vault), 100e18);
+        vault.setFlashBorrowed(address(asset), 40e18);
 
-        uint32 t0 = uint32(block.timestamp);
-        pair.setReserves(1000, 1000, t0);
-        pair.setCumulative(0, 0);
-        oracle.recordSnapshot();
-
-        vm.warp(block.timestamp + 60);
-        uint256 price1 = uint256(1) << 112;
-        pair.setReserves(1000, 1000, uint32(block.timestamp));
-        pair.setCumulative(price1 * 60, 0);
-        oracle.recordSnapshot();
-
-        vm.warp(block.timestamp + 60);
-        pair.setReserves(1000, 500, uint32(block.timestamp));
-        pair.setCumulative(price1 * 120, 0);
-
-        vault.cycle();
-        assertEq(uint256(vault.riskMode()), uint256(EngineVault.RiskMode.ONLY_UNWIND));
+        assertEq(vault.totalAssets(), 60e18);
     }
 
-    function testNavDropTriggersOnlyUnwind() public {
+    function testFlashBorrowedQuoteCapsAtZero() public {
         MockERC20 asset = new MockERC20();
-        MockERC20 alp = new MockERC20();
-        MockAsterDiamond diamond = new MockAsterDiamond(address(alp));
+        asset.mint(address(this), 50e18);
 
-        asset.mint(address(this), 1_000e18);
         MockPancakePair pair = new MockPancakePair();
         VolatilityOracle oracle = new VolatilityOracle(address(pair), true, 60, 3);
-
-        EngineVault vault = new EngineVault(
+        EngineVaultHarness vault = new EngineVaultHarness(
             EngineVault.Addresses({
                 asset: IERC20(address(asset)),
-                asterDiamond: address(diamond),
+                asterDiamond: address(0),
                 pancakeFactory: address(0),
                 v2Pair: address(0),
                 pairBase: address(0),
-                pairQuote: address(0),
+                pairQuote: address(asset),
                 bnbUsdtPair: address(0),
                 volatilityOracle: oracle,
                 flashRebalancer: address(0)
@@ -177,17 +134,9 @@ contract EngineVaultRiskModeTest is Test {
             })
         );
 
-        diamond.setNav(1e18);
-        asset.approve(address(vault), 100e18);
-        vault.deposit(100e18, address(this));
+        asset.transfer(address(vault), 50e18);
+        vault.setFlashBorrowed(address(asset), 80e18);
 
-        vm.warp(block.timestamp + 60);
-        vault.cycle();
-        assertEq(uint256(vault.riskMode()), uint256(EngineVault.RiskMode.NORMAL));
-
-        diamond.setNav(7e17);
-        vm.warp(block.timestamp + 60);
-        vault.cycle();
-        assertEq(uint256(vault.riskMode()), uint256(EngineVault.RiskMode.ONLY_UNWIND));
+        assertEq(vault.totalAssets(), 0);
     }
 }

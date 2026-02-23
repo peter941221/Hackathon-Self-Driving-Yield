@@ -31,7 +31,10 @@ library PancakeLibrary {
     {
         (address token0,) = sortTokens(tokenA, tokenB);
         address pair = pairFor(factory, tokenA, tokenB);
-        (uint112 reserve0, uint112 reserve1,) = IPancakePairV2(pair).getReserves();
+        (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast) = IPancakePairV2(pair).getReserves();
+        if (blockTimestampLast == 0) {
+            return (0, 0);
+        }
         (reserveA, reserveB) = tokenA == token0 ? (reserve0, reserve1) : (reserve1, reserve0);
     }
 

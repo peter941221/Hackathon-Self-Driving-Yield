@@ -52,6 +52,6 @@ forge script script/ForkCycleDemo.s.sol
 
 ## Scene 6 (2:50 - 3:00) Wrap Up
 
-- Screen:施工计划.MD milestone section.
+ - Screen: `docs/SUBMISSION_CHECKLIST.md` (progress section).
 
 - Voice: "M0-M4 done; M5/M6 focus on economics tuning and final demo." 

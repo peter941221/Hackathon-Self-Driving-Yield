@@ -49,10 +49,10 @@ contract WithdrawalQueue {
         require(shares > 0, "ZERO_SHARES");
         require(receiver != address(0), "ZERO_RECEIVER");
 
-        require(vault.transferFrom(msg.sender, address(this), shares), "TRANSFER_SHARES");
         requestId = nextRequestId++;
         requests[requestId] =
             Request({receiver: receiver, shares: shares, claimedShares: 0, requestedAt: block.timestamp, closed: false});
+        require(vault.transferFrom(msg.sender, address(this), shares), "TRANSFER_SHARES");
 
         emit WithdrawRequested(msg.sender, requestId, shares);
     }
@@ -85,14 +85,14 @@ contract WithdrawalQueue {
             return;
         }
 
-        uint256 assetsReceived = vault.redeem(sharesToRedeem, address(this), address(this));
-        uint256 bounty = _calculateClaimBounty(assetsReceived);
-        uint256 toReceiver = assetsReceived - bounty;
-
         req.claimedShares += sharesToRedeem;
         if (req.claimedShares >= req.shares) {
             req.closed = true;
         }
+
+        uint256 assetsReceived = vault.redeem(sharesToRedeem, address(this), address(this));
+        uint256 bounty = _calculateClaimBounty(assetsReceived);
+        uint256 toReceiver = assetsReceived - bounty;
 
         if (bounty > 0) {
             require(asset.transfer(msg.sender, bounty), "BOUNTY_TRANSFER");

@@ -78,6 +78,6 @@ This document summarizes the main risks, assumptions, and mitigations for the Se
 
 ## Known Gaps
 
-- Slither static analysis not yet executed in CI.
+- Slither findings are documented in `docs/SLITHER_NOTES.md`; CI automation is still pending.
 
-- Invariant coverage is basic and should be extended for flash flows.
+- Invariant coverage includes flash accounting, but full flash swap path coverage remains a follow-up.

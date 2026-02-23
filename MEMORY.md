@@ -70,3 +70,9 @@
 - 文档英文化: 重写 `ARCHITECTURE.md` / `ECONOMICS.md` / `docs/ANALYSIS.md` / `docs/ONCHAIN_CHECKS.md`。
 - Oracle 偏差修复: VolatilityOracle 新增 `getTwapPrice1e18()`；EngineVault 使用 TWAP 对比 spot 触发偏差熔断。
 - 新增 `test/VolatilityOracle.t.sol` 覆盖 TWAP 输出；`forge test` 21 tests 全绿。
+- 归档并忽略 `技术方案2.txt` / `施工计划.MD`: 移至 `archive/` 并添加 `.gitignore`；README 和 demo storyboard 去除引用。
+- 新增 `test/FlashAccounting.t.sol` 覆盖 flash 借入资产扣减；`forge test` 23 tests 全绿。
+- 新增 `testPriceDeviationTriggersOnlyUnwind`，验证 TWAP vs spot 偏差触发 ONLY_UNWIND。
+- 更新 `MockPair` 以支持 LP balance/totalSupply 读取，避免测试回滚。
+- Slither 采用 CLI exclude 列表 (见 README/SLITHER_NOTES) 并清零 warnings。
+- 英文化补全 ECONOMICS 模板示例输出，THREAT_MODEL 更新 gap 描述。

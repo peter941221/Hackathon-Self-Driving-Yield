@@ -4,7 +4,7 @@ import {IPancakePairV2} from "../interfaces/IPancakePairV2.sol";
 
 library PancakeOracleLibrary {
     function currentBlockTimestamp() internal view returns (uint32) {
-        return uint32(block.timestamp % 2 ** 32);
+        return uint32(block.timestamp);
     }
 
     function currentCumulativePrices(address pair)
@@ -19,7 +19,9 @@ library PancakeOracleLibrary {
         (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast) = IPancakePairV2(pair).getReserves();
         if (blockTimestampLast != blockTimestamp && reserve0 > 0 && reserve1 > 0) {
             uint32 timeElapsed = blockTimestamp - blockTimestampLast;
+            // slither-disable-next-line divide-before-multiply
             uint256 price0 = (uint256(reserve1) << 112) / uint256(reserve0);
+            // slither-disable-next-line divide-before-multiply
             uint256 price1 = (uint256(reserve0) << 112) / uint256(reserve1);
             price0Cumulative += price0 * timeElapsed;
             price1Cumulative += price1 * timeElapsed;

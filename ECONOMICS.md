@@ -139,3 +139,36 @@ Scenario: 30% one-way BTC move
 - LP IL impact: __
 - Hedge effectiveness: __
 ```
+
+
+## 7. Example Outputs (Illustrative)
+
+Assumptions for illustration:
+
+- TVL: $100,000.
+
+- Daily volume: LP $500k, ALP $800k.
+
+- Funding: -3%.
+
+- Gas: 200 gwei.
+
+- Cycle frequency: 24 per day.
+
+
+Scenario: Gas 200 gwei, Funding -3%, Fee 0.25% (stress)
+
+- Net APY (min / avg / max): 6% / 10% / 14%.
+
+- Cycle / day: 24.
+
+- ONLY_UNWIND Trigger: yes, if TWAP deviation > 5%.
+
+
+Scenario: 30% one-way BTC move
+
+- Net APY (min / avg / max): -3% / 5% / 12%.
+
+- LP IL impact: -8% to -12% on LP leg.
+
+- Hedge effectiveness: 60% to 85% offset of IL.

@@ -44,7 +44,10 @@ library PancakeV2Adapter {
 
     function getUnderlyingAmounts(address pair, address account) internal view returns (uint256 amt0, uint256 amt1) {
         uint256 lpBal = IERC20(pair).balanceOf(account);
-        (uint112 r0, uint112 r1,) = IPancakePairV2(pair).getReserves();
+        (uint112 r0, uint112 r1, uint32 blockTimestampLast) = IPancakePairV2(pair).getReserves();
+        if (blockTimestampLast == 0) {
+            return (0, 0);
+        }
         uint256 ts = IERC20(pair).totalSupply();
         if (ts == 0) {
             return (0, 0);
@@ -70,8 +73,8 @@ library PancakeV2Adapter {
     }
 
     function getSpotPrice1e18(address pair) internal view returns (uint256 price1e18) {
-        (uint112 r0, uint112 r1,) = IPancakePairV2(pair).getReserves();
-        if (r0 == 0) {
+        (uint112 r0, uint112 r1, uint32 blockTimestampLast) = IPancakePairV2(pair).getReserves();
+        if (blockTimestampLast == 0 || r0 == 0) {
             return 0;
         }
         price1e18 = (uint256(r1) * 1e18) / uint256(r0);

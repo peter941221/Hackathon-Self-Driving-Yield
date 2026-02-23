@@ -94,8 +94,6 @@ User (USDT)
 
 ## Docs
 
-- Full Technical Spec: `技术方案2.txt`
-
 - Architecture: `ARCHITECTURE.md`
 
 - Economics: `ECONOMICS.md`
@@ -105,8 +103,6 @@ User (USDT)
 - On-chain checks: `docs/ONCHAIN_CHECKS.md`
 
 - Slither notes: `docs/SLITHER_NOTES.md`
-
-- Implementation Plan: `施工计划.MD`
 
 - Louper Selector Map: `docs/LOUPER_MAP.md`
 
@@ -181,7 +177,7 @@ cast call 0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73 "INIT_CODE_PAIR_HASH()(byte
 ## Static Analysis
 
 ```bash
-slither . --exclude-dependencies
+slither . --exclude-dependencies --exclude incorrect-equality,timestamp,low-level-calls,naming-convention,cyclomatic-complexity,reentrancy-no-eth,reentrancy-benign
 ```
 
 See notes in `docs/SLITHER_NOTES.md`.

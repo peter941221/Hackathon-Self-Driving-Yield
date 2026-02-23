@@ -134,6 +134,7 @@ contract VolatilityOracle {
             return 0;
         }
         uint256 priceAverage = (curr.priceCumulative - prev.priceCumulative) / timeElapsed;
+        // slither-disable-next-line divide-before-multiply
         price1e18 = (priceAverage * 1e18) / (2 ** 112);
     }
 }
