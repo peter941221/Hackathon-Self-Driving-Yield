@@ -38,7 +38,7 @@ contract PancakeV2AdapterTest is Test {
         pair = IPancakeFactoryV2(FACTORY).getPair(BTCB, USDT);
     }
 
-    function testSpotPriceNonZero() public {
+    function testSpotPriceNonZero() public view {
         if (pair == address(0)) {
             return;
         }
@@ -46,7 +46,7 @@ contract PancakeV2AdapterTest is Test {
         assertGt(price, 0);
     }
 
-    function testUnderlyingZeroForNoLP() public {
+    function testUnderlyingZeroForNoLP() public view {
         if (pair == address(0)) {
             return;
         }

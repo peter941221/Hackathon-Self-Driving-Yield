@@ -2190,9 +2190,9 @@ AsterDEX:
 PancakeSwap:
   - Router V2: 0x10ED43C718714eb63d5aA57B78B54704E256024E
   - Factory V2: 0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73
-  - V2 Fee: 0.20%~0.25% total (需链上确认), 0.17% to LP (auto-compound)
+  - V2 Fee: 0.20% total (PancakePair/PancakeLibrary 998/1000, 已确认)
   - V3 Fee: 需手动 claim (不用于 P0)
-  - INIT_CODE_HASH: 0x00fb7f630766e6a...
+  - INIT_CODE_HASH: 0x00fb7f630766e6a796048ea87d01acd3068e8ff67d078148a3fa3f4a84f69bd5
 
 BSC Tokens:
   - USDT:  0x55d398326f99059fF775485246999027B3197955

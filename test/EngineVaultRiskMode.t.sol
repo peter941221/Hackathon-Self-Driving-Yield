@@ -4,6 +4,7 @@ import {Test} from "forge-std/Test.sol";
 import {EngineVault} from "../contracts/core/EngineVault.sol";
 import {VolatilityOracle} from "../contracts/core/VolatilityOracle.sol";
 import {IERC20} from "../contracts/interfaces/IERC20.sol";
+import {MockPancakePair} from "./MockPancakePair.sol";
 
 contract MockERC20 {
     string public name = "Mock";
@@ -65,7 +66,7 @@ contract MockAsterDiamond {
         return 0;
     }
 
-    function lastMintedTimestamp(address) external view returns (uint256) {
+    function lastMintedTimestamp(address) external pure returns (uint256) {
         return 0;
     }
 }
@@ -77,7 +78,8 @@ contract EngineVaultRiskModeTest is Test {
         MockAsterDiamond diamond = new MockAsterDiamond(address(alp));
 
         asset.mint(address(this), 1_000e18);
-        VolatilityOracle oracle = new VolatilityOracle(address(0), true, 60, 3);
+        MockPancakePair pair = new MockPancakePair();
+        VolatilityOracle oracle = new VolatilityOracle(address(pair), true, 60, 3);
 
         EngineVault vault = new EngineVault(
             EngineVault.Addresses({

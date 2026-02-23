@@ -59,6 +59,24 @@ library Aster1001xAdapter {
         }
     }
 
+    function getShortExposure(address diamond, address account, address pairBase)
+        internal
+        view
+        returns (uint256 totalQty, uint256 totalNotional, uint256 avgEntryPrice)
+    {
+        ITradingReader.Position[] memory positions = getPositions(diamond, account, pairBase);
+        for (uint256 i = 0; i < positions.length; i++) {
+            if (!positions[i].isLong) {
+                totalQty += positions[i].qty;
+                totalNotional += uint256(positions[i].qty) * uint256(positions[i].entryPrice);
+            }
+        }
+
+        if (totalQty > 0) {
+            avgEntryPrice = totalNotional / totalQty;
+        }
+    }
+
     function usdToQty(uint256 usdAmount, uint256 price1e8) internal pure returns (uint256 qty1e10) {
         if (price1e8 == 0) {
             return 0;

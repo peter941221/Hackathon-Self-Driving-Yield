@@ -42,9 +42,18 @@ Run:
 forge test
 ```
 
+Optional fork checks:
+
+```bash
+export BSC_RPC_URL="https://bsc-dataseed.binance.org/"
+forge test --match-path test/ForkSuite.t.sol
+```
+
 Say:
 
 - "All tests are green, including invariant and risk-mode tests."
+
+- "Fork suite A-F confirms key on-chain addresses and reserves."
 
 
 ## 4) 1:30 - 2:30 Fork Demo (Live Cycle)
@@ -82,3 +91,17 @@ Say:
 - `ECONOMICS.md`
 
 - `script/ForkCycleDemo.s.sol`
+
+
+## Latest Run Outputs (2026-02-23)
+
+```
+forge test
+- 20 tests passed, 0 failed
+
+forge test --match-path test/ForkSuite.t.sol
+- 6 tests passed, 0 failed
+
+forge script script/ChainChecks.s.sol --rpc-url https://bsc-dataseed.binance.org/
+- INIT_CODE_HASH confirmed via factory INIT_CODE_PAIR_HASH
+```

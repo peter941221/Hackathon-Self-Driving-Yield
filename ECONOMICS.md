@@ -12,7 +12,7 @@ ALP 做市 PnL      | 5-15%    | 交易者统计亏损 = ALP 盈利
 ALP 交易手续费    | 3-8%     | 0.08% * 交易量
 ALP 资金费率      | 1-5%     | 永续合约 funding
 ALP 清算收益      | 1-3%     | 爆仓保证金归入池
-V2 LP 交易费      | 5-20%    | 0.17% * 交易量 (BTCB/USDT)
+ V2 LP 交易费      | 5-20%    | 0.20% * 交易量 (BTCB/USDT)
 ```
 
 
@@ -35,7 +35,7 @@ ALP mint/burn fee | -0.5~-2%| 动态费率
 
 - 交易量: ALP 与 V2 LP 的日均成交量
 
-- 手续费: Pancake V2 fee (0.20%~0.25%) / ALP fee (动态)
+- 手续费: Pancake V2 fee (0.20% confirmed) / ALP fee (动态)
 
 - Funding: 1001x 资金费率区间 (-5% ~ +2%)
 
@@ -109,7 +109,7 @@ Net APY = Net Yield (daily) * 365 / TVL
 
 必须补充以下区间分析，并给出 min/avg/max 净收益区间:
 
-1) Pancake V2 fee: 0.20% 与 0.25%
+1) Pancake V2 fee: 0.20% (baseline) 与 0.25% (stress)
 
 2) Funding: -5% ~ +2%
 
@@ -129,7 +129,7 @@ Net APY = Net Yield (daily) * 365 / TVL
 ## 6. 敏感性输出模板 (Template)
 
 ```
-Scenario: Gas 200 gwei, Funding -3%, Fee 0.25%
+Scenario: Gas 200 gwei, Funding -3%, Fee 0.25% (stress)
 - Net APY (min / avg / max): __ / __ / __
 - Cycle / day: __
 - ONLY_UNWIND Trigger: yes / no

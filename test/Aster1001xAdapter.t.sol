@@ -7,7 +7,7 @@ contract Aster1001xAdapterTest is Test {
     address internal constant DIAMOND = 0x1b6F2d3844C6ae7D56ceb3C3643b9060ba28FEb0;
     address internal constant BTCB = 0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c;
 
-    function testUsdToQty() public {
+    function testUsdToQty() public pure {
         uint256 qty = Aster1001xAdapter.usdToQty(100e18, 25_000e8);
         assertGt(qty, 0);
     }
@@ -28,7 +28,10 @@ contract Aster1001xAdapterTest is Test {
         if (!ok) {
             return;
         }
-        uint256 totalQty = Aster1001xAdapter.getHedgeBaseQty(DIAMOND, address(this), BTCB);
+        (uint256 totalQty, uint256 totalNotional, uint256 avgEntry) =
+            Aster1001xAdapter.getShortExposure(DIAMOND, address(this), BTCB);
         assertEq(totalQty, 0);
+        assertEq(totalNotional, 0);
+        assertEq(avgEntry, 0);
     }
 }

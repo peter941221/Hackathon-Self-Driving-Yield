@@ -5,6 +5,7 @@ import {EngineVault} from "../contracts/core/EngineVault.sol";
 import {WithdrawalQueue} from "../contracts/core/WithdrawalQueue.sol";
 import {VolatilityOracle} from "../contracts/core/VolatilityOracle.sol";
 import {IERC20} from "../contracts/interfaces/IERC20.sol";
+import {MockPair} from "./MockPair.sol";
 
 contract MockERC20 {
     string public name = "Mock";
@@ -47,7 +48,8 @@ contract WithdrawalQueueTest is Test {
         MockERC20 asset = new MockERC20();
         asset.mint(address(this), 100e18);
 
-        VolatilityOracle oracle = new VolatilityOracle(address(0), true, 60, 3);
+        MockPair pair = new MockPair(address(0xA), address(0xB));
+        VolatilityOracle oracle = new VolatilityOracle(address(pair), true, 60, 3);
         EngineVault vault = new EngineVault(
             EngineVault.Addresses({
                 asset: IERC20(address(asset)),

@@ -5,7 +5,7 @@ import {FlashRebalancer} from "../contracts/adapters/FlashRebalancer.sol";
 
 contract FlashRebalancerTest is Test {
     function testOnlyVault() public {
-        FlashRebalancer rebalancer = new FlashRebalancer(address(0), address(0x1234), address(this));
+        FlashRebalancer rebalancer = new FlashRebalancer(address(0x1111), address(0x2222), address(this));
         FlashRebalancer.RebalanceParams memory params =
             FlashRebalancer.RebalanceParams({borrowAmount: 1, borrowToken0: true});
 

@@ -19,9 +19,11 @@ library PancakeV2Adapter {
         uint256 minA = (amountA * (10000 - slippageBps)) / 10000;
         uint256 minB = (amountB * (10000 - slippageBps)) / 10000;
 
-        (,, liquidity) = IPancakeRouterV2(ROUTER).addLiquidity(
+        (uint256 usedA, uint256 usedB, uint256 lpOut) = IPancakeRouterV2(ROUTER).addLiquidity(
             tokenA, tokenB, amountA, amountB, minA, minB, address(this), block.timestamp + 300
         );
+        require(usedA > 0 && usedB > 0 && lpOut > 0, "ZERO_LIQ");
+        liquidity = lpOut;
     }
 
     function removeLiquidity(address tokenA, address tokenB, uint256 liquidity, uint256 slippageBps)

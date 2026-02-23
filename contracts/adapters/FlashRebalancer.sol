@@ -15,6 +15,9 @@ contract FlashRebalancer {
     address public immutable vault;
 
     constructor(address factory_, address pair_, address vault_) {
+        require(factory_ != address(0), "ZERO_FACTORY");
+        require(pair_ != address(0), "ZERO_PAIR");
+        require(vault_ != address(0), "ZERO_VAULT");
         factory = factory_;
         pair = pair_;
         vault = vault_;

@@ -4,6 +4,7 @@ import {Test} from "forge-std/Test.sol";
 import {EngineVault} from "../contracts/core/EngineVault.sol";
 import {IERC20} from "../contracts/interfaces/IERC20.sol";
 import {VolatilityOracle} from "../contracts/core/VolatilityOracle.sol";
+import {MockPair} from "./MockPair.sol";
 
 contract MockERC20 {
     string public name = "Mock";
@@ -46,7 +47,8 @@ contract EngineVaultTest is Test {
         MockERC20 asset = new MockERC20();
         asset.mint(address(this), 1_000e18);
 
-        VolatilityOracle oracle = new VolatilityOracle(address(0), true, 60, 3);
+        MockPair pair = new MockPair(address(0xA), address(0xB));
+        VolatilityOracle oracle = new VolatilityOracle(address(pair), true, 60, 3);
         EngineVault vault = new EngineVault(
             EngineVault.Addresses({
                 asset: IERC20(address(asset)),
@@ -89,7 +91,8 @@ contract EngineVaultTest is Test {
 
     function testCycleInterval() public {
         MockERC20 asset = new MockERC20();
-        VolatilityOracle oracle = new VolatilityOracle(address(0), true, 60, 3);
+        MockPair pair = new MockPair(address(0xA), address(0xB));
+        VolatilityOracle oracle = new VolatilityOracle(address(pair), true, 60, 3);
         EngineVault vault = new EngineVault(
             EngineVault.Addresses({
                 asset: IERC20(address(asset)),

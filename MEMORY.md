@@ -39,3 +39,29 @@
 - 新增 `docs/DEMO_SCRIPT.md` 与 `ECONOMICS.md` 公式/模板扩展；THREAT_MODEL 更新 reentrancy 说明。
 - 添加 nonReentrant 到 EngineVault/WithdrawalQueue 与 transfer/approve require；Slither 仍有 divide-before-multiply / strict equality / timestamp 等警告。
 - 运行 `/update_plan`：向用户汇报了当前自动驾驶理财车的进度、通俗比喻以及遗留任务，处于 M2 到 M3 的过渡阶段。
+
+## 2026-02-23
+- 恢复项目记忆: 已读取 `MEMORY.md` 并开始新会话。
+- 梳理 `施工计划.MD` 未完成项: M5/M6、Part1-3、Part10 fork A-F、Part11、Task 8-9、附录 A-C。
+- README 增加 Design Philosophy + Hackathon Pillars，补足 Why/What/How/Assumptions/Sustainability/Resilience。
+- 运行 `forge test`: 11 passed, 2 failed (ZERO_PAIR in Invariant + RiskMode)。
+- 修复 ZERO_PAIR: 新增 `test/MockPancakePair.sol`，更新 `test/Invariant.t.sol` / `test/EngineVaultRiskMode.t.sol` 使用 mock pair。
+- 新增 fork 测试 A-F: `test/ForkSuite.t.sol`。
+- 新增 `docs/ANALYSIS.md` 与 `docs/ONCHAIN_CHECKS.md`，README 文档索引同步。
+- 运行 `forge test`: 20 tests passed, 0 failed。
+- 运行 fork 测试 (BSC RPC): ForkSuite + Adapter tests 全绿。
+- 运行 `forge script script/ChainChecks.s.sol`: 记录 pair/reserves/ALP/cooldown。
+- 更新 `施工计划.MD`: Part1-3、Part10、Task8、附录 A/C 标记完成，Part4 链上核对标记完成 (fee 仍待确认)。
+- 通过 `cast call` 确认 Pancake V2 `INIT_CODE_PAIR_HASH` 并写入 `docs/ONCHAIN_CHECKS.md` / `技术方案2.txt`。
+- Pancake V2 fee 由核心合约公式确认 0.20%，同步更新 `ECONOMICS.md` 与 `技术方案2.txt`。
+- 更新 `docs/DEMO_SCRIPT.md`，补充 fork suite 命令与最新输出。
+- 测试警告清理: 将多处测试函数标注为 `view/pure`。
+- 运行 `forge test`: 20 tests passed, 0 failed (无编译 warnings)。
+- 重新运行 fork suite: `forge test --match-path test/ForkSuite.t.sol` 全绿。
+- 新增 `docs/SUBMISSION_CHECKLIST.md` (DoraHacks 提交清单)。
+- README 补充 on-chain verification / static analysis / submission 说明并加入新文档索引。
+- 运行 `slither . --exclude-dependencies`，更新 `docs/SLITHER_NOTES.md` (记录所有 warnings 与理由)。
+- 更新 `docs/ONCHAIN_CHECKS.md` 增加 INIT_CODE_PAIR_HASH 与 fee 说明 + 参考链接。
+- 更新 `ECONOMICS.md` 与 `技术方案2.txt`：确认 Pancake V2 fee = 0.20% + INIT_CODE_HASH。
+- 更新 `施工计划.MD`：slither 已运行，记录 warnings。
+- 运行 `forge test` 再次确认 20 tests 全绿。

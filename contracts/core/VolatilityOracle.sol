@@ -30,6 +30,7 @@ contract VolatilityOracle {
     }
 
     constructor(address pair_, bool baseIsToken0_, uint32 minSnapshotInterval_, uint8 minSamples_) {
+        require(pair_ != address(0), "ZERO_PAIR");
         pair = pair_;
         baseIsToken0 = baseIsToken0_;
         minSnapshotInterval = minSnapshotInterval_;

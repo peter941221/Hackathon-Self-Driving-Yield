@@ -16,6 +16,34 @@ An autonomous, non-custodial yield engine for BNB Chain that combines AsterDEX E
 - No Admin: all parameters are immutable, no multisig or keeper dependency.
 
 
+## Design Philosophy
+
+- Why: static vaults ignore volatility; this vault adapts while staying non-custodial.
+
+- What: a self-driving engine allocating across ALP, Pancake V2 LP, and 1001x delta hedging.
+
+- How: TWAP-based regime switching, bounded cycle bounty, and atomic flash rebalances.
+
+- Assumptions: protocol ABIs remain stable, on-chain liquidity is sufficient, BSC finality is normal.
+
+- Sustainability: rebalance only when deviation beats costs; gas/bounty caps prevent overtrading.
+
+- Resilience: ONLY_UNWIND risk mode, partial withdrawals, slippage/deadline guards.
+
+Assumptions and mitigations are expanded in `THREAT_MODEL.md` and `ECONOMICS.md`.
+
+
+## Hackathon Pillars
+
+- Integrate: ALP + Pancake V2 + 1001x adapters.
+
+- Stack: ALP yield + LP fees + hedge funding.
+
+- Automate: permissionless `cycle()` with bounded bounty.
+
+- Protect: TWAP guardrails, flash atomicity, and risk mode safeguards.
+
+
 ## Implementation Notes
 
 - LP rebalancing uses on-chain swaps when the base/quote ratio is off target.
@@ -26,7 +54,7 @@ An autonomous, non-custodial yield engine for BNB Chain that combines AsterDEX E
 
 - Borrowed flash amounts are excluded from target allocation calculations.
 
-- 1001x position size sums short `qty` from `getPositionsV2(address,address)` (reader facet).
+- 1001x position size sums short `qty` from `getPositionsV2(address,address)` and exposes avg entry price.
 
 
 ## Architecture (High-Level)
@@ -72,6 +100,12 @@ User (USDT)
 
 - Economics: `ECONOMICS.md`
 
+- Hackathon analysis: `docs/ANALYSIS.md`
+
+- On-chain checks: `docs/ONCHAIN_CHECKS.md`
+
+- Slither notes: `docs/SLITHER_NOTES.md`
+
 - Implementation Plan: `施工计划.MD`
 
 - Louper Selector Map: `docs/LOUPER_MAP.md`
@@ -81,6 +115,10 @@ User (USDT)
 - Threat model: `THREAT_MODEL.md`
 
 - Demo runbook: `docs/DEMO_SCRIPT.md`
+
+- Demo storyboard: `docs/DEMO_STORYBOARD.md`
+
+- Submission checklist: `docs/SUBMISSION_CHECKLIST.md`
 
 
 ## Quickstart (Foundry)
@@ -113,11 +151,45 @@ export BSC_RPC_URL="https://bsc-dataseed.binance.org/"
 forge test
 ```
 
+Fork suite (A-F):
+
+```bash
+forge test --match-path test/ForkSuite.t.sol
+```
+
+Adapter fork checks:
+
+```bash
+forge test --match-path test/*Adapter.t.sol
+```
+
 Optional:
 
 ```bash
 export BSC_FORK_BLOCK=82710000
 ```
+
+
+## On-Chain Verification
+
+```bash
+forge script script/ChainChecks.s.sol --rpc-url "https://bsc-dataseed.binance.org/"
+cast call 0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73 "INIT_CODE_PAIR_HASH()(bytes32)" --rpc-url https://bsc-dataseed.binance.org/
+```
+
+
+## Static Analysis
+
+```bash
+slither . --exclude-dependencies
+```
+
+See notes in `docs/SLITHER_NOTES.md`.
+
+
+## Submission
+
+Use `docs/SUBMISSION_CHECKLIST.md` and `docs/DEMO_SCRIPT.md` for the final submission.
 
 
 ## Status

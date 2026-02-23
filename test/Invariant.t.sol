@@ -5,6 +5,7 @@ import {StdInvariant} from "forge-std/StdInvariant.sol";
 import {EngineVault} from "../contracts/core/EngineVault.sol";
 import {VolatilityOracle} from "../contracts/core/VolatilityOracle.sol";
 import {IERC20} from "../contracts/interfaces/IERC20.sol";
+import {MockPancakePair} from "./MockPancakePair.sol";
 
 contract MockERC20 {
     string public name = "Mock";
@@ -75,7 +76,8 @@ contract EngineVaultInvariantTest is StdInvariant, Test {
 
     function setUp() public {
         asset = new MockERC20();
-        VolatilityOracle oracle = new VolatilityOracle(address(0), true, 60, 3);
+        MockPancakePair pair = new MockPancakePair();
+        VolatilityOracle oracle = new VolatilityOracle(address(pair), true, 60, 3);
         vault = new EngineVault(
             EngineVault.Addresses({
                 asset: IERC20(address(asset)),
@@ -112,11 +114,11 @@ contract EngineVaultInvariantTest is StdInvariant, Test {
         targetContract(address(handler));
     }
 
-    function invariant_totalSupplyMatchesHandlerBalance() public {
+    function invariant_totalSupplyMatchesHandlerBalance() public view {
         assertEq(vault.totalSupply(), vault.balanceOf(address(handler)));
     }
 
-    function invariant_totalAssetsEqualsCash() public {
+    function invariant_totalAssetsEqualsCash() public view {
         assertEq(vault.totalAssets(), asset.balanceOf(address(vault)));
     }
 }

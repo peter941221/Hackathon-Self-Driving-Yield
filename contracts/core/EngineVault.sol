@@ -417,7 +417,7 @@ contract EngineVault is IFlashRebalanceHook {
 
         (uint256 amtBase,) = PancakeV2Adapter.getUnderlyingAmountsForTokens(v2Pair, address(this), pairBase);
         uint256 lpBaseQty1e10 = (amtBase * 1e10) / 1e18;
-        uint256 hedgeQty1e10 = Aster1001xAdapter.getHedgeBaseQty(asterDiamond, address(this), pairBase);
+        (uint256 hedgeQty1e10,,) = Aster1001xAdapter.getShortExposure(asterDiamond, address(this), pairBase);
         if (lpBaseQty1e10 == 0) {
             return;
         }

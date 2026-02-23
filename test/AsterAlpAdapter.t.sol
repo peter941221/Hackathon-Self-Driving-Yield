@@ -34,7 +34,7 @@ contract AsterAlpAdapterTest is Test {
         harness = new AsterAlpAdapterHarness();
     }
 
-    function testAlpBalanceReadable() public {
+    function testAlpBalanceReadable() public view {
         if (address(harness) == address(0)) {
             return;
         }
@@ -46,7 +46,7 @@ contract AsterAlpAdapterTest is Test {
         assertEq(balance, 0);
     }
 
-    function testCanBurnReadable() public {
+    function testCanBurnReadable() public view {
         if (address(harness) == address(0)) {
             return;
         }
