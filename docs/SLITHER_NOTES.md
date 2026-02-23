@@ -5,7 +5,7 @@ This file records the latest Slither findings and rationale.
 
 ## Latest Run
 
-- Command: `slither . --exclude-dependencies --exclude incorrect-equality,timestamp,low-level-calls,naming-convention,cyclomatic-complexity,reentrancy-no-eth,reentrancy-benign`
+- Command: `slither . --exclude-dependencies --exclude incorrect-equality,timestamp,low-level-calls,naming-convention,cyclomatic-complexity`
 
 - Date: 2026-02-23
 

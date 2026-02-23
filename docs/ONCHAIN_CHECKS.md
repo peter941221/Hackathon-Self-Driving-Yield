@@ -30,6 +30,7 @@ cast call 0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73 "INIT_CODE_PAIR_HASH()(byte
 | Reserve1         | 1371035204587529363                         |
 | ALP              | 0x4E47057f45adF24ba41375a175dA0357cB3480E5   |
 | Cooldown (sec)   | 172800                                      |
+| ALP Price (1e8)  | 180337314                                   |
 | INIT_CODE_HASH   | 0x00fb7f630766e6a796048ea87d01acd3068e8ff6   |
 |                  | 7d078148a3fa3f4a84f69bd5                     |
 +------------------+--------------------------------------------+
@@ -57,3 +58,5 @@ Notes:
 - `lastMintedTimestamp(address)` may not exist in the current diamond ABI; the script prints 0.
 
 - INIT_CODE_HASH is sourced from the factory call `INIT_CODE_PAIR_HASH()`.
+
+- `alpPrice()` appears to be 1e8-scaled (Aster pricing convention).

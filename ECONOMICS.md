@@ -68,6 +68,32 @@ Notes:
 - IL is proxied by volatility.
 
 
+## 2.3 Data Snapshot (2026-02-23)
+
+Sources:
+
+- BTCB/USDT pair data: Dexscreener API (`https://api.dexscreener.com/latest/dex/pairs/bsc/0x3F803EC2b816Ea7F06EC76aA2B6f2532F9892d62`).
+
+- ALP price: on-chain `alpPrice()` from Aster Diamond.
+
+- Aster BSC TVL: DeFiLlama protocol data (`https://api.llama.fi/protocol/aster`).
+
+
+Snapshot values:
+
+- BTCB price (USD): 64,795.77.
+
+- 24h volume (BTCB/USDT): 26,880.57.
+
+- LP liquidity (USD): 178,521.77.
+
+- LP reserves: 1.3775 BTCB and 89,260 USDT.
+
+- ALP price: 180,337,314 (1e8 scale) => 1.8034 USD.
+
+- Aster BSC TVL: 828,912,836 USD.
+
+
 ## 3. Three Regime Scenarios
 
 ### CALM (vol < 1%)
@@ -158,7 +184,17 @@ Assumptions for illustration:
 
 Scenario: Gas 200 gwei, Funding -3%, Fee 0.25% (stress)
 
-- Net APY (min / avg / max): 6% / 10% / 14%.
+- LP fee pool (24h): 26,880.57 * 0.20% = 53.76 USDT.
+
+- LP allocation (NORMAL): 37% of $100k = $37,000.
+
+- Vault LP share: 37,000 / 178,521.77 = 20.73%.
+
+- Vault LP fee (24h): 53.76 * 20.73% = 11.14 USDT.
+
+- LP fee APY (standalone): 11.14 * 365 / 100,000 = 4.07%.
+
+- Net APY (min / avg / max): 4% / 9% / 13% (includes ALP + hedge assumptions).
 
 - Cycle / day: 24.
 

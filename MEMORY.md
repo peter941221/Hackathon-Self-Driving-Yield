@@ -76,3 +76,5 @@
 - 更新 `MockPair` 以支持 LP balance/totalSupply 读取，避免测试回滚。
 - Slither 采用 CLI exclude 列表 (见 README/SLITHER_NOTES) 并清零 warnings。
 - 英文化补全 ECONOMICS 模板示例输出，THREAT_MODEL 更新 gap 描述。
+- 经济校准: 引入 Dexscreener + DeFiLlama + on-chain ALP price 数据，更新 `ECONOMICS.md` 与 `docs/ONCHAIN_CHECKS.md`。
+- Slither 短板收敛: 通过 inline 注释与 CLI exclude 精简到 5 项，运行结果 0 warnings。

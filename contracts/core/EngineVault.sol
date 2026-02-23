@@ -215,8 +215,7 @@ contract EngineVault is IFlashRebalanceHook {
         return supply == 0 || total == 0 ? 0 : (shares * total) / supply;
     }
 
-    // slither-disable-next-line reentrancy-no-eth
-    // slither-disable-next-line reentrancy-benign
+    // slither-disable-next-line reentrancy-no-eth,reentrancy-benign
     function cycle() external nonReentrant {
         require(block.timestamp >= lastCycleTimestamp + minCycleInterval, "CYCLE_INTERVAL");
 
