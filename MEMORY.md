@@ -65,3 +65,4 @@
 - 更新 `ECONOMICS.md` 与 `技术方案2.txt`：确认 Pancake V2 fee = 0.20% + INIT_CODE_HASH。
 - 更新 `施工计划.MD`：slither 已运行，记录 warnings。
 - 运行 `forge test` 再次确认 20 tests 全绿。
+- 完善 README (英文) 与提交清单；提交并推送至 `origin/main`。
