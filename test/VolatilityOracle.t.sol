@@ -36,6 +36,25 @@ contract MockPancakePair {
 }
 
 contract VolatilityOracleTest is Test {
+    function testTwapPriceFromLatestSnapshots() public {
+        MockPancakePair pair = new MockPancakePair(address(0xA), address(0xB));
+        VolatilityOracle oracle = new VolatilityOracle(address(pair), true, 60, 2);
+
+        uint32 t0 = uint32(block.timestamp);
+        pair.setReserves(1000, 1000, t0);
+        pair.setCumulative(0, 0);
+        oracle.recordSnapshot();
+
+        vm.warp(block.timestamp + 60);
+        uint256 price1 = uint256(100) << 112;
+        pair.setReserves(1000, 1000, uint32(block.timestamp));
+        pair.setCumulative(price1 * 60, 0);
+        oracle.recordSnapshot();
+
+        uint256 twap = oracle.getTwapPrice1e18();
+        assertEq(twap, 100e18);
+    }
+
     function testRegimeSwitchToStorm() public {
         MockPancakePair pair = new MockPancakePair(address(0xA), address(0xB));
         VolatilityOracle oracle = new VolatilityOracle(address(pair), true, 60, 3);

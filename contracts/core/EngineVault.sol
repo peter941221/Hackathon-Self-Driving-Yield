@@ -736,7 +736,10 @@ contract EngineVault is IFlashRebalanceHook {
     }
 
     function _getOraclePrice1e18() internal view returns (uint256) {
-        return _getBasePrice1e18();
+        if (address(volatilityOracle) == address(0)) {
+            return 0;
+        }
+        return volatilityOracle.getTwapPrice1e18();
     }
 
     function _transfer(address from, address to, uint256 amount) internal {

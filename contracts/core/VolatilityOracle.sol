@@ -104,6 +104,26 @@ contract VolatilityOracle {
         return Regime.STORM;
     }
 
+    function getTwapPrice1e18() external view returns (uint256 price1e18) {
+        if (snapshotCount < 2) {
+            return 0;
+        }
+
+        uint8 currIndex = (snapshotIndex + WINDOW_SIZE - 1) % WINDOW_SIZE;
+        uint8 prevIndex = (snapshotIndex + WINDOW_SIZE - 2) % WINDOW_SIZE;
+        PriceSnapshot memory currSnap = snapshots[currIndex];
+        PriceSnapshot memory prevSnap = snapshots[prevIndex];
+        if (currSnap.timestamp == 0 || prevSnap.timestamp == 0) {
+            return 0;
+        }
+
+        if (currSnap.timestamp <= prevSnap.timestamp) {
+            return 0;
+        }
+
+        return _twapPrice1e18(prevSnap, currSnap);
+    }
+
     function _twapPrice1e18(PriceSnapshot memory prev, PriceSnapshot memory curr)
         internal
         pure

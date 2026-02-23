@@ -66,3 +66,7 @@
 - 更新 `施工计划.MD`：slither 已运行，记录 warnings。
 - 运行 `forge test` 再次确认 20 tests 全绿。
 - 完善 README (英文) 与提交清单；提交并推送至 `origin/main`。
+- 进行全量代码/文档检视并评估竞赛胜率: 结构与测试完整度高, 主要缺口在 Demo 视频与部分中文文档, 另有 oracle deviation 使用 spot 的潜在风险提示。
+- 文档英文化: 重写 `ARCHITECTURE.md` / `ECONOMICS.md` / `docs/ANALYSIS.md` / `docs/ONCHAIN_CHECKS.md`。
+- Oracle 偏差修复: VolatilityOracle 新增 `getTwapPrice1e18()`；EngineVault 使用 TWAP 对比 spot 触发偏差熔断。
+- 新增 `test/VolatilityOracle.t.sol` 覆盖 TWAP 输出；`forge test` 21 tests 全绿。

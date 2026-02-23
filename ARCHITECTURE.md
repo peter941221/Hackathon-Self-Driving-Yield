@@ -1,9 +1,9 @@
 # Architecture
 
-本文件从系统组件、资金流、状态机与风控机制解释整体架构。
+This document explains the system components, fund flow, state machine, and risk controls.
 
 
-## 1. 系统组件 (Components)
+## 1. Components
 
 ```
 EngineVault (ERC-4626)
@@ -16,7 +16,7 @@ EngineVault (ERC-4626)
 ```
 
 
-## 2. 资金流 (Funds Flow)
+## 2. Fund Flow
 
 ```
 Deposit
@@ -33,7 +33,7 @@ Withdraw
 ```
 
 
-## 3. cycle 状态机 (State Machine)
+## 3. cycle State Machine
 
 ```
 Phase 0  Pre-checks
@@ -45,13 +45,13 @@ Phase 5  Delta hedge
 Phase 6  Bounty payout + events
 ```
 
-补充规则:
+Rules:
 
-- snapshot 采样必须满足 minSnapshotInterval
+- Snapshot sampling must respect `minSnapshotInterval`.
 
-- 冷启动 (samples < MIN_SAMPLES) 强制 NORMAL
+- Cold start (samples < MIN_SAMPLES) forces NORMAL regime.
 
-- 冷启动阶段不触发 Flash Rebalance
+- Cold start does not trigger Flash Rebalance.
 
 
 ## 4. Regime Switching
@@ -75,27 +75,27 @@ STORM  : >= 3%      => ALP 80% / LP 17% / Buffer 3%
 ```
 
 
-## 6. 风控模式 (Risk Mode)
+## 6. Risk Mode
 
 ```
 RiskMode.NORMAL      : allow add / reduce
 RiskMode.ONLY_UNWIND : only reduce / unwind
 ```
 
-触发条件:
+Triggers:
 
-- ALP NAV 下跌超过阈值
+- ALP NAV drops beyond threshold.
 
-- 价格偏差超过阈值
+- TWAP vs spot deviation exceeds threshold.
 
-- 1001x 仓位健康度接近清算
+- 1001x health factor approaches liquidation.
 
-解除条件:
+Exit:
 
-- 连续 N 次 cycle() 满足安全阈值
+- N consecutive safe cycles.
 
 
-## 7. 目录结构 (Repo Layout)
+## 7. Repo Layout
 
 ```
 contracts/
@@ -109,7 +109,7 @@ docs/
 ```
 
 
-## 8. 关键外部依赖 (External Addresses)
+## 8. External Addresses
 
 - Aster 1001x Diamond: 0x1b6f2d3844c6ae7d56ceb3c3643b9060ba28feb0
 
