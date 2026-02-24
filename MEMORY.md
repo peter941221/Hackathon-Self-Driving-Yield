@@ -78,3 +78,32 @@
 - 英文化补全 ECONOMICS 模板示例输出，THREAT_MODEL 更新 gap 描述。
 - 经济校准: 引入 Dexscreener + DeFiLlama + on-chain ALP price 数据，更新 `ECONOMICS.md` 与 `docs/ONCHAIN_CHECKS.md`。
 - Slither 短板收敛: 通过 inline 注释与 CLI exclude 精简到 5 项，运行结果 0 warnings。
+- 评估题目达成度: 四大支柱 (Integrate/Stack/Automate/Protect) 有代码与文档证据链, 结论为“结构性达成”, Demo 仍是官方硬性材料。
+- 更新 README 状态措辞并新增 Testnet 部署说明。
+- 修复代码质量问题: EngineVault 清理死代码并新增 UnwindForWithdraw 事件, Aster1001xAdapter 增加 uint96 边界检查, IAsterDiamond 注释改为最小接口说明。
+- 新增 5 组测试: `test/CycleFullPath.t.sol` / `test/FlashRebalanceFull.t.sol` / `test/BountyEdgeCases.t.sol` / `test/WithdrawalQueueEdge.t.sol` / `test/OracleEdgeCases.t.sol`, 以及 `test/MockERC20.sol`。
+- 新增 `scripts/backtest.py` 并用 CoinGecko 90 天数据生成回测输出, 更新 `ECONOMICS.md` 回测结果。
+- 新增 `script/Deploy.s.sol` 用于 BSC Testnet 部署脚本。
+- 修复新增测试的 mock 逻辑与退化场景, `forge test` 40/40 通过。
+- BSC Testnet 已领取 0.3 tBNB 并确认到账, faucet tx: 0xab808b8974fa67593d6842a8b61639f84dbd2949993954f9b91900d6d5dfa6e7。
+- 新增根目录部署输入模板: `DEPLOYMENT_INPUTS.md` (用于填写部署参数, 私钥不写入)。
+
+## 2026-02-23 (续)
+- 恢复项目记忆，解读 `DEPLOYMENT_INPUTS.md` 填写指南。
+- 链上查询 BSC Testnet 交易对: BTCB/USDT 和 WBNB/USDT 均不存在；WBNB/BUSD 存在且有流动性。
+- 分析部署策略: 方案 A (测试网部署) vs 方案 B (Fork 主网测试)，结论选 B。
+  - 理由: Aster ALP 和 1001x 仅在 BSC 主网，测试网无法演示核心功能。
+- 更新 `DEPLOYMENT_INPUTS.md`: 标注选择 Fork BSC 主网方案，保留测试网信息备用。
+- 运行 `forge test`: 39/40 通过，1 失败 (testForkC_AsterAlpPriceReadable)。
+  - 失败原因: 公开 RPC 非 archive node，无法读取历史区块存储，非代码问题。
+- 梳理剩余任务: Demo 视频 (必需) + DoraHacks 提交表单。
+- **规则确认**: 以后会话进度自动更新 MEMORY.md。
+
+## 2026-02-23 (提交准备)
+- 全面检视项目竞争力: 技术完整度高，主要缺口在Demo视频。
+- 优化 `docs/DORAHACKS_SUBMISSION.md`: 增加ASCII艺术、表格、创新亮点强调。
+- 更新 `docs/DEMO_STORYBOARD.md`: 增加详细的画面指导、台词、录制技巧。
+- 验证Demo命令:
+  - `forge test` → 40/40 通过 (含invariant测试)
+  - `forge script script/ForkCycleDemo.s.sol` → 成功输出 Shares/Regime/TotalAssets
+- 剩余任务: 录制Demo视频 + 填写DoraHacks表单。

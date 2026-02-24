@@ -33,5 +33,5 @@ interface IAsterDiamond {
 
     function alpPrice() external view returns (uint256);
 
-    // P0 subset; extend after ABI confirmation.
+    // Minimal interface covering functions used by this vault. Full ABI available via Louper.
 }

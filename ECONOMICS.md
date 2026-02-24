@@ -167,44 +167,26 @@ Scenario: 30% one-way BTC move
 ```
 
 
-## 7. Example Outputs (Illustrative)
+## 7. Backtest Outputs (90d, scripts/backtest.py)
 
-Assumptions for illustration:
+Run:
 
-- TVL: $100,000.
+```bash
+python scripts/backtest.py --days 90 --tvl 100000 --cycles-per-day 4 --gas-gwei 50
+```
 
-- Daily volume: LP $500k, ALP $800k.
+Latest run (2026-02-23, source=coingecko):
 
-- Funding: -3%.
+- Regime days: CALM 39, NORMAL 36, STORM 15.
 
-- Gas: 200 gwei.
+- APY min / avg / max: 1.67% / 6.10% / 11.42%.
 
-- Cycle frequency: 24 per day.
+- Sharpe: 6.38.
 
+- Cumulative (90d): 1.51%.
 
-Scenario: Gas 200 gwei, Funding -3%, Fee 0.25% (stress)
+- Curve: .....____---~~~~~::::++++====***####%%%@
 
-- LP fee pool (24h): 26,880.57 * 0.20% = 53.76 USDT.
+Notes:
 
-- LP allocation (NORMAL): 37% of $100k = $37,000.
-
-- Vault LP share: 37,000 / 178,521.77 = 20.73%.
-
-- Vault LP fee (24h): 53.76 * 20.73% = 11.14 USDT.
-
-- LP fee APY (standalone): 11.14 * 365 / 100,000 = 4.07%.
-
-- Net APY (min / avg / max): 4% / 9% / 13% (includes ALP + hedge assumptions).
-
-- Cycle / day: 24.
-
-- ONLY_UNWIND Trigger: yes, if TWAP deviation > 5%.
-
-
-Scenario: 30% one-way BTC move
-
-- Net APY (min / avg / max): -3% / 5% / 12%.
-
-- LP IL impact: -8% to -12% on LP leg.
-
-- Hedge effectiveness: 60% to 85% offset of IL.
+- Outputs are model-based. Re-run before submission to refresh numbers.

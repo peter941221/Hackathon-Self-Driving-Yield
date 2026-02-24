@@ -74,6 +74,7 @@ contract EngineVault is IFlashRebalanceHook {
     event RebalancePlanned(int256 alpDelta, int256 lpDelta, uint256 totalValue);
     event FlashBorrowed(address indexed token, uint256 amount);
     event FlashRepaid(address indexed token, uint256 amount);
+    event UnwindForWithdraw(uint256 amount);
 
     modifier nonReentrant() {
         require(reentrancyLock == 0, "REENTRANCY");
@@ -263,8 +264,9 @@ contract EngineVault is IFlashRebalanceHook {
         require(IERC20(repayToken).transfer(msg.sender, repayAmount), "FLASH_REPAY");
     }
 
-    function unwindForWithdraw(uint256) external nonReentrant {
+    function unwindForWithdraw(uint256 amount) external nonReentrant {
         if (!enableExternalCalls) {
+            emit UnwindForWithdraw(amount);
             return;
         }
         if (asterDiamond != address(0) && pairBase != address(0)) {
@@ -278,22 +280,18 @@ contract EngineVault is IFlashRebalanceHook {
         if (v2Pair != address(0) && pairBase != address(0) && pairQuote != address(0)) {
             uint256 lpBal = IERC20(v2Pair).balanceOf(address(this));
             if (lpBal > 0) {
-                (uint256 amountA, uint256 amountB) = PancakeV2Adapter.removeLiquidity(pairBase, pairQuote, lpBal, 50);
-                if (amountA == 0 && amountB == 0) {
-                    amountA = 0;
-                }
+                PancakeV2Adapter.removeLiquidity(pairBase, pairQuote, lpBal, 50);
             }
         }
 
         if (asterDiamond != address(0) && AsterAlpAdapter.canBurn(asterDiamond)) {
             uint256 alpBal = AsterAlpAdapter.getAlpBalance(asterDiamond, address(this));
             if (alpBal > 0) {
-                uint256 tokenReceived = AsterAlpAdapter.burnAlp(asterDiamond, address(asset), alpBal, 0);
-                if (tokenReceived == 0) {
-                    tokenReceived = 0;
-                }
+                AsterAlpAdapter.burnAlp(asterDiamond, address(asset), alpBal, 0);
             }
         }
+
+        emit UnwindForWithdraw(amount);
     }
 
     // slither-disable-next-line reentrancy-benign

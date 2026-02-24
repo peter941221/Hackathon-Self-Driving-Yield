@@ -13,6 +13,7 @@ library Aster1001xAdapter {
         uint256 qty,
         uint256 worstPrice
     ) internal {
+        require(marginAmount <= type(uint96).max, "MARGIN_TOO_LARGE");
         IAsterDiamond.OpenDataInput memory data = IAsterDiamond.OpenDataInput({
             pairBase: pairBase,
             isLong: false,

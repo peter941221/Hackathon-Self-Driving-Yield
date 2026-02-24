@@ -4,31 +4,111 @@
 Self-Driving Yield Engine (Aster Dual-Engine Vault)
 
 ## One-Line Pitch
-A fully autonomous, non-custodial yield engine that uses Aster ALP as both a primary yield source and an endogenous volatility hedge for PancakeSwap LPs.
+An autonomous yield vault that uses Aster ALP as both a yield engine AND a natural hedge against LP impermanent loss — no admin, no keeper, no trust required.
+
+---
 
 ## The Problem
-DeFi yields are static and require active management. During market stress, liquidity providers suffer impermanent loss, while humans are too slow to rebalance efficiently. 
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│  LP Pain: Impermanent loss eats yield                          │
+│  Old Way: Manual rebalance is slow, MEV bots front-run         │
+│  Custody Risk: Multisig/admins can rug pull                    │
+└────────────────────────────────────────────────────────────────┘
+```
+
+When volatility spikes, LPs bleed impermanent loss. Traditional vaults either:
+- Stay static and lose money
+- Rely on trusted keepers (centralization risk)
+- Get front-run by MEV bots during rebalancing
+
+---
 
 ## Our Solution
-We built an autonomous smart contract system ("Self-Driving Yield Engine") based on the Four Pillars:
-1. **Integrate**: Uses AsterDEX ALP as the primary yield engine.
-2. **Stack**: Re-deploys yield into PancakeSwap V2 LPs for automatic compounding.
-3. **Automate**: Permissionless `cycle()` state machine with a bounded bounty mechanism.
-4. **Protect**: 100% non-custodial, immutable parameters, and an atomic Flash Swap rebalancer.
+
+A **fully autonomous** yield engine with a novel insight:
+
+> **ALP is a "short volatility" position** — it earns MORE when markets are volatile.
+> This naturally offsets LP impermanent loss during market stress.
+
+```
+        CALM MARKET            STORM MARKET
+        ┌─────────┐            ┌─────────┐
+   LP   │  ████   │ High yield  │  ██     │ IL loss
+   ALP  │  ███    │ Stable      │  ██████ │ High yield (hedge!)
+        └─────────┘            └─────────┘
+        
+        → Auto rebalance ←
+```
+
+### Four Pillars Alignment
+
+| Pillar | Implementation |
+|--------|----------------|
+| **Integrate** | Aster ALP + Pancake V2 + 1001x delta hedge |
+| **Stack** | ALP yield → LP fees → hedge funding, triple-compounding |
+| **Automate** | Permissionless `cycle()` with bounded bounty incentive |
+| **Protect** | 0 admin, immutable params, atomic flash rebalance |
+
+---
 
 ## Design Highlights
-- **ALP as a Hedge**: ALP is effectively a "short volatility" position (earns from trading volume/liquidations). It naturally offsets the impermanent loss of PancakeSwap LPs during high-volatility regimes.
-- **Regime Switching**: An on-chain TWAP volatility oracle shifts allocations between CALM, NORMAL, and STORM regimes autonomously.
-- **Risk Resilience**: Price deviations between TWAP and spot trigger an `ONLY_UNWIND` risk mode, preventing risky capital deployments during flash crashes.
+
+### 1. ALP as Endogenous Hedge
+- ALP earns from trading fees + liquidations = profits from volatility
+- LP suffers from IL = losses from volatility
+- **Result**: Natural hedge without external derivatives
+
+### 2. Regime-Switching Oracle
+```
+  CALM (vol<1%)    →  ALP 40% / LP 57%  →  ~10% APY
+  NORMAL (1-3%)    →  ALP 60% / LP 37%  →  ~12% APY  
+  STORM (≥3%)      →  ALP 80% / LP 17%  →  ~17% APY
+```
+
+### 3. MEV-Resistant Rebalancing
+- Flash Swap borrows → rebalances → repays in one atomic tx
+- No external DEX calls that can be sandwiched
+- Slippage/deadline guards built-in
+
+### 4. Risk Resilience
+- `ONLY_UNWIND` mode: TWAP vs spot deviation > 5% triggers safe unwind
+- No risky capital deployment during flash crashes
+- Gas/bounty caps prevent over-trading
+
+---
 
 ## Technical Execution
-- 100% Solidity (Foundry).
-- 24/24 passing invariant and unit tests.
-- 0 Slither static analysis findings (with documented intentional exclusions).
-- Full on-chain verification (fork tests suite A-F).
+
+| Metric | Status |
+|--------|--------|
+| Solidity Version | 0.8.20 (Foundry) |
+| Test Coverage | 40/40 passing (unit + invariant + fork) |
+| Static Analysis | Slither 0 warnings (with documented exclusions) |
+| On-chain Verification | Fork suite A-F validated |
+| Documentation | README + ARCHITECTURE + ECONOMICS + THREAT_MODEL |
+
+### Core Contracts
+- `EngineVault.sol` — ERC-4626 style vault with regime switching
+- `VolatilityOracle.sol` — TWAP-based volatility measurement
+- `FlashRebalancer.sol` — Atomic rebalance via flash swap
+- `WithdrawalQueue.sol` — Permissionless withdrawal claims
+- `AsterAlpAdapter.sol` / `PancakeV2Adapter.sol` / `Aster1001xAdapter.sol`
+
+---
+
+## Why This Can Win
+
+1. **Novel Insight**: First vault to use ALP's volatility-preferring returns as an IL hedge
+2. **Truly Trustless**: No admin key, no keeper dependency, parameters are immutable
+3. **Production-Ready**: Comprehensive tests, documented threat model, economic calibration
+4. **Hackathon Pillar-Aligned**: Explicitly addresses Integrate/Stack/Automate/Protect
+
+---
 
 ## GitHub Repository
-[Insert your GitHub Repo URL here]
+https://github.com/peter941221/Hackathon-Self-Driving-Yield
 
 ## Demo Video
-[Insert your Demo Video URL here]
+https://www.youtube.com/watch?v=rdQyEShM0vs

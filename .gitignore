@@ -6,3 +6,6 @@
 .env.*
 *.log
 model-calls.jsonl
+
+# Demo video (too large for GitHub)
+/demo/

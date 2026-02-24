@@ -1,8 +1,8 @@
 # Louper Selector Map
 
-来源: LouperDump + 4byte.directory
+Source: LouperDump + 4byte.directory
 
-注意: 4byte 可能存在重名/撞签名，仅作指引，需配合链上 ABI 校验。
+Note: 4byte may have duplicate/colliding signatures. Use as guidance only; verify with on-chain ABI.
 
 
 Facet: 0x0890CE86aE04f45b0d8c92FA1c0554D1Ba835739 (ALP)
@@ -63,7 +63,7 @@ Facet: 0x28dE81Bc5B6164d8522ad32AD7D139A21fa1E3b4 (Reader)
 └──────────────┴───────────────────────────────────────────────┘
 
 
-验证方式 (示例):
+Verification (example):
 
 - `cast 4byte 0x703085c7`
 

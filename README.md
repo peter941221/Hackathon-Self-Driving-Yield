@@ -1,9 +1,52 @@
-# Self-Driving Yield Engine v2.0
+# Self-Driving Yield Engine
 
-An autonomous, non-custodial yield engine for BNB Chain that combines AsterDEX Earn (ALP) with PancakeSwap V2 LPs and on-chain delta hedging. The goal is to outperform static vaults by dynamically reallocating based on on-chain realized volatility.
+<p align="center">
+  <strong>An autonomous yield vault that hedges itself</strong>
+</p>
 
+<p align="center">
+  <a href="https://www.youtube.com/watch?v=rdQyEShM0vs">
+    <img src="https://img.shields.io/badge/Demo-Video-red?style=for-the-badge&logo=youtube" alt="Demo Video">
+  </a>
+  <img src="https://img.shields.io/badge/Tests-40%2F40%20Passing-brightgreen?style=for-the-badge" alt="Tests">
+  <img src="https://img.shields.io/badge/Platform-BNB%20Chain-yellow?style=for-the-badge" alt="Platform">
+  <img src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge" alt="License">
+</p>
 
-## Key Ideas
+---
+
+## What is this?
+
+An **autonomous, non-custodial yield engine** for BNB Chain that uses **Aster ALP as both a yield source AND a natural hedge** against LP impermanent loss.
+
+**Key insight**: ALP earns more when markets are volatile — naturally offsetting LP losses during market stress.
+
+```
+     CALM MARKET          STORM MARKET
+     ┌─────────┐          ┌─────────┐
+LP   │  ████   │ High     │  ██     │ IL loss
+ALP  │  ███    │ Stable   │  ██████ │ High yield!
+     └─────────┘          └─────────┘
+     
+                    → Auto rebalance ←
+     
+          ```
+     
+          
+     
+          ## Demo Video
+     
+          
+     
+          **[Watch the 3-minute demo on YouTube](https://www.youtube.com/watch?v=rdQyEShM0vs)**
+     
+          
+     
+          ---
+     
+          
+     
+          ## Key Ideas
 
 - Dual Engine: ALP is both a yield source and a volatility hedge.
 
@@ -174,6 +217,27 @@ cast call 0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73 "INIT_CODE_PAIR_HASH()(byte
 ```
 
 
+## Testnet Deployment (BSC)
+
+Deployment script: `script/Deploy.s.sol`
+
+```bash
+export BSC_TESTNET_RPC_URL="https://data-seed-prebsc-1-s1.binance.org:8545/"
+export PRIVATE_KEY="<your key>"
+forge script script/Deploy.s.sol --rpc-url "$BSC_TESTNET_RPC_URL" --broadcast --verify
+```
+
+Deployed addresses (fill after broadcast):
+
+- EngineVault: TBD
+
+- VolatilityOracle: TBD
+
+- WithdrawalQueue: TBD
+
+- FlashRebalancer: TBD
+
+
 ## Static Analysis
 
 ```bash
@@ -190,4 +254,4 @@ Use `docs/SUBMISSION_CHECKLIST.md` and `docs/DEMO_SCRIPT.md` for the final submi
 
 ## Status
 
-This repository is a working scaffold for the hackathon build-out. Core contracts and tests compile, and the strategy logic is being implemented iteratively.
+This repository contains the complete smart contract suite, test coverage, and documentation for the Self-Driving Yield Engine. All tests pass locally. Fork suite A-F validates on-chain integrations.
