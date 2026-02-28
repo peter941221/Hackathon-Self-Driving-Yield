@@ -15,6 +15,12 @@
 
 ---
 
+## About
+
+Self-Driving Yield Engine is a non-custodial vault on BNB Chain that automatically shifts capital between ALP, Pancake V2 LP, and a 1001x hedge.
+
+It was built for hackathon evaluation with a strong focus on automation, risk controls, and on-chain verifiability.
+
 ## What is this?
 
 An **autonomous, non-custodial yield engine** for BNB Chain that uses **Aster ALP as both a yield source AND a natural hedge** against LP impermanent loss.
@@ -29,24 +35,15 @@ ALP  │  ███    │ Stable   │  ██████ │ High yield!
      └─────────┘          └─────────┘
      
                     → Auto rebalance ←
-     
-          ```
-     
-          
-     
-          ## Demo Video
-     
-          
-     
-          **[Watch the 3-minute demo on YouTube](https://www.youtube.com/watch?v=rdQyEShM0vs)**
-     
-          
-     
-          ---
-     
-          
-     
-          ## Key Ideas
+```
+
+## Demo Video
+
+**[Watch the 3-minute demo on YouTube](https://www.youtube.com/watch?v=rdQyEShM0vs)**
+
+---
+
+## Key Ideas
 
 - Dual Engine: ALP is both a yield source and a volatility hedge.
 
@@ -110,6 +107,35 @@ User (USDT)
      -> 1001x Adapter (Delta Hedge)
      -> VolatilityOracle (TWAP)
      -> WithdrawalQueue (permissionless claim)
+```
+
+### `cycle()` Flow (Mermaid)
+
+```mermaid
+flowchart TD
+  A[cycle called by anyone] --> B[Phase 0 pre-checks<br/>slippage deadline gas bounty caps]
+  B --> C[Phase 1 read state<br/>ALP LP hedge cash]
+  C --> D[Phase 2 TWAP snapshot]
+  D --> E{min samples ready}
+  E -->|No| F[Force NORMAL<br/>skip flash rebalance]
+  E -->|Yes| G[Compute regime<br/>CALM NORMAL STORM]
+  F --> H[Phase 3 target allocation]
+  G --> H
+  H --> I{RiskMode ONLY_UNWIND}
+  I -->|Yes| J[Reduce-only path<br/>unwind hedge remove LP burn ALP]
+  I -->|No| K[Select rebalance path]
+  K --> L{Deviation exceeds threshold}
+  L -->|Yes| M[FlashRebalancer atomic path]
+  L -->|No| N[Incremental swap and LP adjustment]
+  M --> O[Phase 5 hedge adjustment]
+  N --> O
+  J --> O
+  O --> P{Health + deviation safe}
+  P -->|No| Q[Set ONLY_UNWIND and emit risk event]
+  P -->|Yes| R[Stay NORMAL]
+  Q --> S[Phase 6 bounded bounty payout]
+  R --> S
+  S --> T[Emit CycleCompleted and accounting events]
 ```
 
 
