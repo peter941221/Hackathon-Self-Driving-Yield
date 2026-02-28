@@ -106,6 +106,7 @@ User (USDT)
 ### `cycle()` Flow (Mermaid)
 
 ```mermaid
+%%{init: {"theme":"base","themeVariables":{"fontFamily":"ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace","lineColor":"#475569","primaryColor":"#e8f3ff","primaryBorderColor":"#2563eb","primaryTextColor":"#0f172a"}}}%%
 flowchart TD
   A[cycle called by anyone] --> B[Phase 0 pre-checks<br/>slippage deadline gas bounty caps]
   B --> C[Phase 1 read state<br/>ALP LP hedge cash]
@@ -130,6 +131,20 @@ flowchart TD
   Q --> S[Phase 6 bounded bounty payout]
   R --> S
   S --> T[Emit CycleCompleted and accounting events]
+
+  classDef start fill:#fde68a,stroke:#d97706,color:#111827,stroke-width:2px
+  classDef compute fill:#ccfbf1,stroke:#0f766e,color:#0f172a,stroke-width:1.8px
+  classDef decision fill:#dbeafe,stroke:#1d4ed8,color:#0f172a,stroke-width:1.8px
+  classDef risk fill:#fecaca,stroke:#b91c1c,color:#111827,stroke-width:1.8px
+  classDef rebalance fill:#fef3c7,stroke:#b45309,color:#111827,stroke-width:1.8px
+  classDef stable fill:#dcfce7,stroke:#15803d,color:#111827,stroke-width:1.8px
+
+  class A,S,T start
+  class B,C,D,F,G,H,O compute
+  class E,I,L,P decision
+  class J,Q risk
+  class M,N rebalance
+  class R stable
 ```
 
 
