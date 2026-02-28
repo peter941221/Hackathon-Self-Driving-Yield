@@ -15,12 +15,6 @@
 
 ---
 
-## About
-
-Self-Driving Yield Engine is a non-custodial vault on BNB Chain that automatically shifts capital between ALP, Pancake V2 LP, and a 1001x hedge.
-
-It was built for hackathon evaluation with a strong focus on automation, risk controls, and on-chain verifiability.
-
 ## What is this?
 
 An **autonomous, non-custodial yield engine** for BNB Chain that uses **Aster ALP as both a yield source AND a natural hedge** against LP impermanent loss.
