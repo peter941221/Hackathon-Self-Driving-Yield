@@ -106,8 +106,8 @@ User (USDT)
 ### `cycle()` Flow (Mermaid + ANSI Legend)
 
 ```ansi
-\u001b[1;33mSTART\u001b[0m       \u001b[1;36mCOMPUTE\u001b[0m       \u001b[1;34mDECISION\u001b[0m
-\u001b[1;31mRISK\u001b[0m        \u001b[1;35mREBALANCE\u001b[0m     \u001b[1;32mSTABLE\u001b[0m
+[1;33mSTART[0m       [1;36mCOMPUTE[0m       [1;34mDECISION[0m
+[1;31mRISK[0m        [1;35mREBALANCE[0m     [1;32mSTABLE[0m
 ```
 
 ```mermaid
