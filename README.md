@@ -103,48 +103,66 @@ User (USDT)
      -> WithdrawalQueue (permissionless claim)
 ```
 
-### `cycle()` Flow (Mermaid)
+### `cycle()` Flow (ASCII Color)
 
-```mermaid
-%%{init: {"theme":"base","themeVariables":{"fontFamily":"ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace","lineColor":"#475569","primaryColor":"#e8f3ff","primaryBorderColor":"#2563eb","primaryTextColor":"#0f172a"}}}%%
-flowchart TD
-  A[cycle called by anyone] --> B[Phase 0 pre-checks<br/>slippage deadline gas bounty caps]
-  B --> C[Phase 1 read state<br/>ALP LP hedge cash]
-  C --> D[Phase 2 TWAP snapshot]
-  D --> E{min samples ready}
-  E -->|No| F[Force NORMAL<br/>skip flash rebalance]
-  E -->|Yes| G[Compute regime<br/>CALM NORMAL STORM]
-  F --> H[Phase 3 target allocation]
-  G --> H
-  H --> I{RiskMode ONLY_UNWIND}
-  I -->|Yes| J[Reduce-only path<br/>unwind hedge remove LP burn ALP]
-  I -->|No| K[Select rebalance path]
-  K --> L{Deviation exceeds threshold}
-  L -->|Yes| M[FlashRebalancer atomic path]
-  L -->|No| N[Incremental swap and LP adjustment]
-  M --> O[Phase 5 hedge adjustment]
-  N --> O
-  J --> O
-  O --> P{Health + deviation safe}
-  P -->|No| Q[Set ONLY_UNWIND and emit risk event]
-  P -->|Yes| R[Stay NORMAL]
-  Q --> S[Phase 6 bounded bounty payout]
-  R --> S
-  S --> T[Emit CycleCompleted and accounting events]
+```text
+Legend:
+  🟨 START       🟦 COMPUTE       🔷 DECISION
+  🟥 RISK        🟧 REBALANCE     🟩 STABLE
 
-  classDef start fill:#fde68a,stroke:#d97706,color:#111827,stroke-width:2px
-  classDef compute fill:#ccfbf1,stroke:#0f766e,color:#0f172a,stroke-width:1.8px
-  classDef decision fill:#dbeafe,stroke:#1d4ed8,color:#0f172a,stroke-width:1.8px
-  classDef risk fill:#fecaca,stroke:#b91c1c,color:#111827,stroke-width:1.8px
-  classDef rebalance fill:#fef3c7,stroke:#b45309,color:#111827,stroke-width:1.8px
-  classDef stable fill:#dcfce7,stroke:#15803d,color:#111827,stroke-width:1.8px
-
-  class A,S,T start
-  class B,C,D,F,G,H,O compute
-  class E,I,L,P decision
-  class J,Q risk
-  class M,N rebalance
-  class R stable
+🟨 [START] cycle() called by anyone
+    |
+    v
+🟦 [COMPUTE] Phase 0 pre-checks (slippage / deadline / gas / bounty caps)
+    |
+    v
+🟦 [COMPUTE] Phase 1 read state (ALP / LP / hedge / cash)
+    |
+    v
+🟦 [COMPUTE] Phase 2 TWAP snapshot
+    |
+    v
+🔷 [DECISION] min samples ready?
+    |Yes                                         |No
+    v                                            v
+🟦 [COMPUTE] Compute regime                       🟦 [COMPUTE] Force NORMAL
+              (CALM / NORMAL / STORM)                          (skip flash rebalance)
+    |                                            |
+    +------------------------+-------------------+
+                             |
+                             v
+🟦 [COMPUTE] Phase 3 target allocation
+    |
+    v
+🔷 [DECISION] RiskMode == ONLY_UNWIND?
+    |Yes                                         |No
+    v                                            v
+🟥 [RISK] Reduce-only path                        🟦 [COMPUTE] Select rebalance path
+          (unwind hedge / remove LP / burn ALP)      |
+    |                                                 v
+    |                                      🔷 [DECISION] Deviation exceeds threshold?
+    |                                               |Yes                         |No
+    |                                               v                            v
+    |                                      🟧 [REBALANCE] Flash atomic path      🟧 [REBALANCE] Incremental swap + LP adjust
+    |                                               |                            |
+    +-----------------------------------------------+------------+---------------+
+                                                                 |
+                                                                 v
+🟦 [COMPUTE] Phase 5 hedge adjustment
+    |
+    v
+🔷 [DECISION] Health + deviation safe?
+    |No                                          |Yes
+    v                                             v
+🟥 [RISK] Set ONLY_UNWIND + emit event            🟩 [STABLE] Stay NORMAL
+    |                                             |
+    +--------------------------+------------------+
+                               |
+                               v
+🟨 [START] Phase 6 bounded bounty payout
+    |
+    v
+🟨 [START] Emit CycleCompleted + accounting events
 ```
 
 
