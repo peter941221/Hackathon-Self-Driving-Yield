@@ -103,12 +103,24 @@ User (USDT)
      -> WithdrawalQueue (permissionless claim)
 ```
 
-### `cycle()` Flow (Mermaid + ANSI Legend)
+### `cycle()` Flow (Mermaid + Legends)
 
-```ansi
-[1;33mSTART[0m       [1;36mCOMPUTE[0m       [1;34mDECISION[0m
-[1;31mRISK[0m        [1;35mREBALANCE[0m     [1;32mSTABLE[0m
-```
+Emoji Legend:
+- 🟨 START
+- 🟦 COMPUTE
+- 🔷 DECISION
+- 🟥 RISK
+- 🟧 REBALANCE
+- 🟩 STABLE
+
+Badge Legend:
+
+![START](https://img.shields.io/badge/START-yellow?style=flat-square)
+![COMPUTE](https://img.shields.io/badge/COMPUTE-cyan?style=flat-square)
+![DECISION](https://img.shields.io/badge/DECISION-blue?style=flat-square)
+![RISK](https://img.shields.io/badge/RISK-red?style=flat-square)
+![REBALANCE](https://img.shields.io/badge/REBALANCE-orange?style=flat-square)
+![STABLE](https://img.shields.io/badge/STABLE-brightgreen?style=flat-square)
 
 ```mermaid
 flowchart TD
