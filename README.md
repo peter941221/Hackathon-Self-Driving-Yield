@@ -103,66 +103,38 @@ User (USDT)
      -> WithdrawalQueue (permissionless claim)
 ```
 
-### `cycle()` Flow (ASCII Color)
+### `cycle()` Flow (Mermaid + ANSI Legend)
 
-```text
-Legend:
-  🟨 START       🟦 COMPUTE       🔷 DECISION
-  🟥 RISK        🟧 REBALANCE     🟩 STABLE
+```ansi
+\u001b[1;33mSTART\u001b[0m       \u001b[1;36mCOMPUTE\u001b[0m       \u001b[1;34mDECISION\u001b[0m
+\u001b[1;31mRISK\u001b[0m        \u001b[1;35mREBALANCE\u001b[0m     \u001b[1;32mSTABLE\u001b[0m
+```
 
-🟨 [START] cycle() called by anyone
-    |
-    v
-🟦 [COMPUTE] Phase 0 pre-checks (slippage / deadline / gas / bounty caps)
-    |
-    v
-🟦 [COMPUTE] Phase 1 read state (ALP / LP / hedge / cash)
-    |
-    v
-🟦 [COMPUTE] Phase 2 TWAP snapshot
-    |
-    v
-🔷 [DECISION] min samples ready?
-    |Yes                                         |No
-    v                                            v
-🟦 [COMPUTE] Compute regime                       🟦 [COMPUTE] Force NORMAL
-              (CALM / NORMAL / STORM)                          (skip flash rebalance)
-    |                                            |
-    +------------------------+-------------------+
-                             |
-                             v
-🟦 [COMPUTE] Phase 3 target allocation
-    |
-    v
-🔷 [DECISION] RiskMode == ONLY_UNWIND?
-    |Yes                                         |No
-    v                                            v
-🟥 [RISK] Reduce-only path                        🟦 [COMPUTE] Select rebalance path
-          (unwind hedge / remove LP / burn ALP)      |
-    |                                                 v
-    |                                      🔷 [DECISION] Deviation exceeds threshold?
-    |                                               |Yes                         |No
-    |                                               v                            v
-    |                                      🟧 [REBALANCE] Flash atomic path      🟧 [REBALANCE] Incremental swap + LP adjust
-    |                                               |                            |
-    +-----------------------------------------------+------------+---------------+
-                                                                 |
-                                                                 v
-🟦 [COMPUTE] Phase 5 hedge adjustment
-    |
-    v
-🔷 [DECISION] Health + deviation safe?
-    |No                                          |Yes
-    v                                             v
-🟥 [RISK] Set ONLY_UNWIND + emit event            🟩 [STABLE] Stay NORMAL
-    |                                             |
-    +--------------------------+------------------+
-                               |
-                               v
-🟨 [START] Phase 6 bounded bounty payout
-    |
-    v
-🟨 [START] Emit CycleCompleted + accounting events
+```mermaid
+flowchart TD
+  A[START: cycle called by anyone] --> B[COMPUTE: Phase 0 pre-checks<br/>slippage deadline gas bounty caps]
+  B --> C[COMPUTE: Phase 1 read state<br/>ALP LP hedge cash]
+  C --> D[COMPUTE: Phase 2 TWAP snapshot]
+  D --> E{DECISION: min samples ready}
+  E -->|No| F[COMPUTE: Force NORMAL<br/>skip flash rebalance]
+  E -->|Yes| G[COMPUTE: Compute regime<br/>CALM NORMAL STORM]
+  F --> H[COMPUTE: Phase 3 target allocation]
+  G --> H
+  H --> I{DECISION: RiskMode ONLY_UNWIND}
+  I -->|Yes| J[RISK: Reduce-only path<br/>unwind hedge remove LP burn ALP]
+  I -->|No| K[COMPUTE: Select rebalance path]
+  K --> L{DECISION: Deviation exceeds threshold}
+  L -->|Yes| M[REBALANCE: FlashRebalancer atomic path]
+  L -->|No| N[REBALANCE: Incremental swap and LP adjustment]
+  M --> O[COMPUTE: Phase 5 hedge adjustment]
+  N --> O
+  J --> O
+  O --> P{DECISION: Health + deviation safe}
+  P -->|No| Q[RISK: Set ONLY_UNWIND and emit risk event]
+  P -->|Yes| R[STABLE: Stay NORMAL]
+  Q --> S[START: Phase 6 bounded bounty payout]
+  R --> S
+  S --> T[START: Emit CycleCompleted and accounting events]
 ```
 
 
