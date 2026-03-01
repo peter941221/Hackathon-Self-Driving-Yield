@@ -103,50 +103,48 @@ User (USDT)
      -> WithdrawalQueue (permissionless claim)
 ```
 
-### `cycle()` Flow (Mermaid + Legends)
-
-Emoji Legend:
-- 🟨 START
-- 🟦 COMPUTE
-- 🔷 DECISION
-- 🟥 RISK
-- 🟧 REBALANCE
-- 🟩 STABLE
-
-Badge Legend:
-
-![START](https://img.shields.io/badge/START-yellow?style=flat-square)
-![COMPUTE](https://img.shields.io/badge/COMPUTE-cyan?style=flat-square)
-![DECISION](https://img.shields.io/badge/DECISION-blue?style=flat-square)
-![RISK](https://img.shields.io/badge/RISK-red?style=flat-square)
-![REBALANCE](https://img.shields.io/badge/REBALANCE-orange?style=flat-square)
-![STABLE](https://img.shields.io/badge/STABLE-brightgreen?style=flat-square)
+### `cycle()` Flow (Mermaid)
 
 ```mermaid
+%%{init: {"theme":"base","themeVariables":{"fontFamily":"ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace","lineColor":"#475569","primaryColor":"#e8f3ff","primaryBorderColor":"#2563eb","primaryTextColor":"#0f172a"}}}%%
 flowchart TD
-  A[START: cycle called by anyone] --> B[COMPUTE: Phase 0 pre-checks<br/>slippage deadline gas bounty caps]
-  B --> C[COMPUTE: Phase 1 read state<br/>ALP LP hedge cash]
-  C --> D[COMPUTE: Phase 2 TWAP snapshot]
-  D --> E{DECISION: min samples ready}
-  E -->|No| F[COMPUTE: Force NORMAL<br/>skip flash rebalance]
-  E -->|Yes| G[COMPUTE: Compute regime<br/>CALM NORMAL STORM]
-  F --> H[COMPUTE: Phase 3 target allocation]
+  A[cycle called by anyone] --> B[Phase 0 pre-checks<br/>slippage deadline gas bounty caps]
+  B --> C[Phase 1 read state<br/>ALP LP hedge cash]
+  C --> D[Phase 2 TWAP snapshot]
+  D --> E{min samples ready}
+  E -->|No| F[Force NORMAL<br/>skip flash rebalance]
+  E -->|Yes| G[Compute regime<br/>CALM NORMAL STORM]
+  F --> H[Phase 3 target allocation]
   G --> H
-  H --> I{DECISION: RiskMode ONLY_UNWIND}
-  I -->|Yes| J[RISK: Reduce-only path<br/>unwind hedge remove LP burn ALP]
-  I -->|No| K[COMPUTE: Select rebalance path]
-  K --> L{DECISION: Deviation exceeds threshold}
-  L -->|Yes| M[REBALANCE: FlashRebalancer atomic path]
-  L -->|No| N[REBALANCE: Incremental swap and LP adjustment]
-  M --> O[COMPUTE: Phase 5 hedge adjustment]
+  H --> I{RiskMode ONLY_UNWIND}
+  I -->|Yes| J[Reduce-only path<br/>unwind hedge remove LP burn ALP]
+  I -->|No| K[Select rebalance path]
+  K --> L{Deviation exceeds threshold}
+  L -->|Yes| M[FlashRebalancer atomic path]
+  L -->|No| N[Incremental swap and LP adjustment]
+  M --> O[Phase 5 hedge adjustment]
   N --> O
   J --> O
-  O --> P{DECISION: Health + deviation safe}
-  P -->|No| Q[RISK: Set ONLY_UNWIND and emit risk event]
-  P -->|Yes| R[STABLE: Stay NORMAL]
-  Q --> S[START: Phase 6 bounded bounty payout]
+  O --> P{Health + deviation safe}
+  P -->|No| Q[Set ONLY_UNWIND and emit risk event]
+  P -->|Yes| R[Stay NORMAL]
+  Q --> S[Phase 6 bounded bounty payout]
   R --> S
-  S --> T[START: Emit CycleCompleted and accounting events]
+  S --> T[Emit CycleCompleted and accounting events]
+
+  classDef start fill:#fde68a,stroke:#d97706,color:#111827,stroke-width:2px
+  classDef compute fill:#ccfbf1,stroke:#0f766e,color:#0f172a,stroke-width:1.8px
+  classDef decision fill:#dbeafe,stroke:#1d4ed8,color:#0f172a,stroke-width:1.8px
+  classDef risk fill:#fecaca,stroke:#b91c1c,color:#111827,stroke-width:1.8px
+  classDef rebalance fill:#fef3c7,stroke:#b45309,color:#111827,stroke-width:1.8px
+  classDef stable fill:#dcfce7,stroke:#15803d,color:#111827,stroke-width:1.8px
+
+  class A,S,T start
+  class B,C,D,F,G,H,O compute
+  class E,I,L,P decision
+  class J,Q risk
+  class M,N rebalance
+  class R stable
 ```
 
 
