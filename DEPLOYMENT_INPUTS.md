@@ -6,7 +6,7 @@
 - BSC Testnet 上 BTCB/USDT 和 WBNB/USDT 交易对不存在
 - Aster ALP 和 1001x 合约仅在 BSC 主网部署
 - Fork 测试可以与真实协议交互，展示完整功能
-- 项目已有 40/40 测试通过，Fork suite A-F 已验证
+- 项目已有 44/44 测试通过，Fork suite A-F 已验证
 
 ---
 

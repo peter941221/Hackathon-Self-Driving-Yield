@@ -70,7 +70,7 @@
 ┌─────────────────────────────────────────────────────┐
 │  切换到终端 (字体大!)                               │
 │  运行: forge test                                   │
-│  等待 "40 passed" 输出                              │
+│  等待 "44 passed" 输出                              │
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -80,10 +80,10 @@ forge test
 ```
 
 ### 台词
-> "All 40 tests pass. This includes unit tests, invariant tests, fork tests, and negative cases like the ONLY_UNWIND trigger. We also ran Slither static analysis with zero findings."
+> "All 44 tests pass. This includes unit tests, invariant tests, fork tests, and negative cases like the ONLY_UNWIND trigger. We also ran Slither static analysis with zero findings."
 
 ### 关键点
-- 📈 数字"40"有说服力
+- 📈 数字"44"有说服力
 - 🔬 提到invariant和negative tests显专业
 
 ---

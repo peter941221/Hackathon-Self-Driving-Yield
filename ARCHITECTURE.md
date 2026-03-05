@@ -10,10 +10,13 @@ EngineVault (ERC-4626)
 ├─ AsterAlpAdapter        (ALP mint/burn/NAV)
 ├─ PancakeV2Adapter       (LP add/remove/price)
 ├─ Aster1001xAdapter      (open/close hedge)
-├─ FlashRebalancer        (Flash Swap atomic rebalance)
 ├─ VolatilityOracle       (TWAP volatility)
 └─ WithdrawalQueue        (permissionless redemption)
 ```
+
+EngineVault also implements:
+- Pancake V2 flash swap rebalance via `flashPair.swap(...)` + `pancakeCall(...)` callback
+- `flashPair` must be different from the LP pair (`v2Pair`) to avoid UniswapV2 `lock()` deadlock
 
 
 ## 2. Fund Flow
@@ -51,7 +54,7 @@ Rules:
 
 - Cold start (samples < MIN_SAMPLES) forces NORMAL regime.
 
-- Cold start does not trigger Flash Rebalance.
+- Cold start does not trigger the flash-swap rebalance path.
 
 
 ## 4. Regime Switching
@@ -63,15 +66,13 @@ STORM  : >= 3%      => ALP 80% / LP 17% / Buffer 3%
 ```
 
 
-## 5. Flash Rebalance (Atomic)
+## 5. Flash Swap Rebalance (Atomic)
 
 ```
-1) Flash Swap borrow
-2) Remove old LP
-3) Recompute allocation
-4) Add new LP
-5) Adjust 1001x hedge
-6) Repay Flash Swap (via PancakeLibrary.getAmountsIn)
+1) EngineVault calls `flashPair.swap(...)` to borrow base/quote
+2) `flashPair` calls back `EngineVault.pancakeCall(...)`
+3) In callback: remove/adjust LP, run swaps, add LP, adjust 1001x hedge
+4) Compute repay amount via UniswapV2 formula (`PancakeLibrary.getAmountIn`) and repay
 ```
 
 

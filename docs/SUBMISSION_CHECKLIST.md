@@ -25,22 +25,22 @@ This list tracks what must be ready before final submission.
 
 ## 3) Demo Video (Required)
 
-- [ ] Record a 3-minute demo video.
+- [x] Record a 3-minute demo video.
 
-- [ ] Upload video and capture final link.
+- [x] Upload video and capture final link.
 
-- [ ] Verify the demo follows `docs/DEMO_SCRIPT.md`.
+- [x] Verify the demo follows `docs/DEMO_SCRIPT.md`.
 
 
 ## 4) Submission Form (DoraHacks)
 
-- [ ] Project name + one-line pitch.
+- [x] Project name + one-line pitch (`docs/DORAHACKS_SUBMISSION.md`).
 
 - [ ] Track / tags selection.
 
-- [ ] GitHub repo link.
+- [x] GitHub repo link (`docs/DORAHACKS_SUBMISSION.md`).
 
-- [ ] Demo video link.
+- [x] Demo video link (`README.md` / `docs/DORAHACKS_SUBMISSION.md`).
 
 - [ ] Team member info.
 

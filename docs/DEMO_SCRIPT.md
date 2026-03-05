@@ -27,7 +27,7 @@ Say:
 
 - "VolatilityOracle provides regime switching."
 
-- "FlashRebalancer and WithdrawalQueue complete the automation."
+- "EngineVault executes atomic flash-swap rebalances (Pancake V2 `pancakeCall`), and WithdrawalQueue enables permissionless redemptions."
 
 Show:
 
@@ -93,15 +93,12 @@ Say:
 - `script/ForkCycleDemo.s.sol`
 
 
-## Latest Run Outputs (2026-02-23)
+## Latest Run Outputs (2026-03-05)
 
 ```
 forge test
-- 20 tests passed, 0 failed
+- 44 tests passed, 0 failed
 
 forge test --match-path test/ForkSuite.t.sol
 - 6 tests passed, 0 failed
-
-forge script script/ChainChecks.s.sol --rpc-url https://bsc-dataseed.binance.org/
-- INIT_CODE_HASH confirmed via factory INIT_CODE_PAIR_HASH
 ```

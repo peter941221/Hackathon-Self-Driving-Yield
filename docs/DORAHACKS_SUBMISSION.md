@@ -84,15 +84,14 @@ A **fully autonomous** yield engine with a novel insight:
 | Metric | Status |
 |--------|--------|
 | Solidity Version | 0.8.20 (Foundry) |
-| Test Coverage | 40/40 passing (unit + invariant + fork) |
+| Test Coverage | 44/44 passing (unit + invariant + fork) |
 | Static Analysis | Slither 0 warnings (with documented exclusions) |
 | On-chain Verification | Fork suite A-F validated |
 | Documentation | README + ARCHITECTURE + ECONOMICS + THREAT_MODEL |
 
 ### Core Contracts
-- `EngineVault.sol` — ERC-4626 style vault with regime switching
+- `EngineVault.sol` — ERC-4626 style vault with regime switching + atomic flash swap rebalance (`pancakeCall`)
 - `VolatilityOracle.sol` — TWAP-based volatility measurement
-- `FlashRebalancer.sol` — Atomic rebalance via flash swap
 - `WithdrawalQueue.sol` — Permissionless withdrawal claims
 - `AsterAlpAdapter.sol` / `PancakeV2Adapter.sol` / `Aster1001xAdapter.sol`
 
