@@ -177,7 +177,7 @@ contract EngineVaultRiskModeTest is Test {
             })
         );
 
-        diamond.setNav(1e18);
+        diamond.setNav(1e8);
         asset.approve(address(vault), 100e18);
         vault.deposit(100e18, address(this));
 
@@ -185,9 +185,62 @@ contract EngineVaultRiskModeTest is Test {
         vault.cycle();
         assertEq(uint256(vault.riskMode()), uint256(EngineVault.RiskMode.NORMAL));
 
-        diamond.setNav(7e17);
+        diamond.setNav(7e7);
         vm.warp(block.timestamp + 60);
         vault.cycle();
         assertEq(uint256(vault.riskMode()), uint256(EngineVault.RiskMode.ONLY_UNWIND));
+    }
+
+    function testNavIncreaseDoesNotRevert() public {
+        MockERC20 asset = new MockERC20();
+        MockERC20 alp = new MockERC20();
+        MockAsterDiamond diamond = new MockAsterDiamond(address(alp));
+
+        asset.mint(address(this), 1_000e18);
+
+        EngineVault vault = new EngineVault(
+            EngineVault.Addresses({
+                asset: IERC20(address(asset)),
+                asterDiamond: address(diamond),
+                pancakeFactory: address(0),
+                v2Pair: address(0),
+                pairBase: address(0),
+                pairQuote: address(0),
+                bnbUsdtPair: address(0),
+                volatilityOracle: VolatilityOracle(address(0)),
+                flashRebalancer: address(0)
+            }),
+            EngineVault.Config({
+                enableExternalCalls: false,
+                minCycleInterval: 1,
+                rebalanceThresholdBps: 500,
+                deltaBandBps: 200,
+                profitBountyBps: 0,
+                maxBountyBps: 50,
+                bufferCapBps: 2000,
+                calmAlpBps: 4000,
+                calmLpBps: 5700,
+                normalAlpBps: 6000,
+                normalLpBps: 3700,
+                stormAlpBps: 8000,
+                stormLpBps: 1700,
+                safeCycleThreshold: 3,
+                maxGasPrice: 0,
+                swapSlippageBps: 50
+            })
+        );
+
+        asset.approve(address(vault), 100e18);
+        vault.deposit(100e18, address(this));
+
+        diamond.setNav(1e8);
+        vm.warp(100);
+        vault.cycle();
+
+        diamond.setNav(11e7);
+        vm.warp(102);
+        vault.cycle();
+
+        assertEq(uint256(vault.riskMode()), uint256(EngineVault.RiskMode.NORMAL));
     }
 }

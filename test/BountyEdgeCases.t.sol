@@ -123,4 +123,23 @@ contract BountyEdgeCasesTest is Test {
 
         assertEq(asset.balanceOf(caller), 10e18);
     }
+
+    function testBountyDoesNotCountDepositsAsProfit() public {
+        (EngineVault vault, MockERC20 asset,) = _deployVault(1000, 10000, 10000, 0);
+
+        address user = address(0xB0B);
+        asset.mint(user, 1000e18);
+
+        vm.startPrank(user);
+        asset.approve(address(vault), 1000e18);
+        vault.deposit(1000e18, user);
+        vm.stopPrank();
+
+        address caller = address(0xCA11);
+        vm.prank(caller);
+        vault.cycle();
+
+        assertEq(asset.balanceOf(caller), 0);
+        assertEq(asset.balanceOf(address(vault)), 1000e18);
+    }
 }

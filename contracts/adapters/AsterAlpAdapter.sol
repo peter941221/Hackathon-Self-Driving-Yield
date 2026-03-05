@@ -4,6 +4,12 @@ import {IERC20} from "../interfaces/IERC20.sol";
 import {IAsterDiamond} from "../interfaces/IAsterDiamond.sol";
 
 library AsterAlpAdapter {
+    uint256 internal constant ALP_PRICE_SCALE = 1e8;
+
+    function alpPriceScale() internal pure returns (uint256) {
+        return ALP_PRICE_SCALE;
+    }
+
     function mintAlp(address diamond, address tokenIn, uint256 amount, uint256 minAlp, bool stake)
         internal
         returns (uint256 alpReceived)
@@ -43,6 +49,9 @@ library AsterAlpAdapter {
     function getAlpValueInUsd(address diamond, address account) internal view returns (uint256) {
         uint256 balance = getAlpBalance(diamond, account);
         uint256 nav = getAlpNAV(diamond);
-        return (balance * nav) / 1e18;
+        if (nav == 0) {
+            return 0;
+        }
+        return (balance * nav) / ALP_PRICE_SCALE;
     }
 }

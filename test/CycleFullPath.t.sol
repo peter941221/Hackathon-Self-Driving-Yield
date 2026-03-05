@@ -97,7 +97,7 @@ contract MockAsterDiamond {
 
     constructor(address alpToken_) {
         alpToken = alpToken_;
-        alpPrice = 1e18;
+        alpPrice = 1e8;
     }
 
     function ALP() external view returns (address) {

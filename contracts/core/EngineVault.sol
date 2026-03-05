@@ -178,6 +178,8 @@ contract EngineVault is IFlashRebalanceHook {
         balanceOf[receiver] += shares;
 
         require(asset.transferFrom(msg.sender, address(this), assets), "TRANSFER_IN");
+        // Exclude net deposits from the cycle profit baseline to avoid bounty extracting principal.
+        lastTotalAssets += assets;
         emit Deposit(msg.sender, receiver, assets, shares);
     }
 
@@ -195,6 +197,12 @@ contract EngineVault is IFlashRebalanceHook {
         balanceOf[owner] -= shares;
         totalSupply -= shares;
 
+        // Exclude net withdrawals from the cycle profit baseline to avoid under-counting profit after redemptions.
+        if (lastTotalAssets >= assets) {
+            lastTotalAssets -= assets;
+        } else {
+            lastTotalAssets = 0;
+        }
         require(asset.transfer(receiver, assets), "TRANSFER_OUT");
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
     }
@@ -319,7 +327,7 @@ contract EngineVault is IFlashRebalanceHook {
 
         if (asterDiamond != address(0)) {
             uint256 nav = AsterAlpAdapter.getAlpNAV(asterDiamond);
-            if (nav > 0 && lastKnownNav > 0) {
+            if (nav > 0 && lastKnownNav > 0 && nav < lastKnownNav) {
                 uint256 navDropBps = (lastKnownNav - nav) * 10000 / lastKnownNav;
                 if (navDropBps > 1000) {
                     triggered = true;
@@ -489,7 +497,7 @@ contract EngineVault is IFlashRebalanceHook {
         if (nav == 0) {
             return;
         }
-        uint256 alpToBurn = (value * 1e18) / nav;
+        uint256 alpToBurn = (value * AsterAlpAdapter.alpPriceScale()) / nav;
         if (alpToBurn == 0) {
             return;
         }
