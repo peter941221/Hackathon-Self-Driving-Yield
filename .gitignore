@@ -6,6 +6,7 @@
 .env.*
 *.log
 model-calls.jsonl
+MEMORY.md
 
 # Demo video (too large for GitHub)
 /demo/
