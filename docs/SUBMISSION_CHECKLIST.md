@@ -36,14 +36,14 @@ This list tracks what must be ready before final submission.
 
 - [x] Project name + one-line pitch (`docs/DORAHACKS_SUBMISSION.md`).
 
-- [ ] Track / tags selection.
+- [ ] Track / tags selection (see suggestions in `docs/DORAHACKS_SUBMISSION.md`).
 
 - [x] GitHub repo link (`docs/DORAHACKS_SUBMISSION.md`).
 
 - [x] Demo video link (`README.md` / `docs/DORAHACKS_SUBMISSION.md`).
 
-- [ ] Team member info.
+- [ ] Team member info (fill in DoraHacks).
 
-- [ ] Contract addresses (if required by track).
+- [ ] Contract addresses (if required by track; fork demo defaults to N/A).
 
 - [ ] Optional: slide deck link.

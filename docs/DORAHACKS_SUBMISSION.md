@@ -111,3 +111,21 @@ https://github.com/peter941221/Hackathon-Self-Driving-Yield
 
 ## Demo Video
 https://www.youtube.com/watch?v=rdQyEShM0vs
+
+---
+
+## Track / Tags (Fill in DoraHacks)
+
+- Track: pick the hackathon track that best matches DeFi / BNB Chain.
+
+- Suggested tags: DeFi, Yield, Automation, BNB Chain, MEV-resistance, Flash Swap, No-admin.
+
+
+## Team (Fill in DoraHacks)
+
+- Add your team members in the submission form.
+
+
+## Contract Addresses
+
+- Demo is fork-based (no deployment). If the track requires addresses, deploy using `script/Deploy.s.sol` and fill them here.
