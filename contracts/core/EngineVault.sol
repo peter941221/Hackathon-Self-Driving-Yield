@@ -362,11 +362,14 @@ contract EngineVault {
 
     function _circuitBreakerCheck() internal {
         bool triggered = false;
+        bool signalsReady = true;
 
         if (asterDiamond != address(0)) {
+            uint256 prevNav = lastKnownNav;
             uint256 nav = AsterAlpAdapter.getAlpNAV(asterDiamond);
-            if (nav > 0 && lastKnownNav > 0 && nav < lastKnownNav) {
-                uint256 navDropBps = (lastKnownNav - nav) * 10000 / lastKnownNav;
+            bool navEvaluated = nav > 0 && prevNav > 0;
+            if (navEvaluated && nav < prevNav) {
+                uint256 navDropBps = (prevNav - nav) * 10000 / prevNav;
                 if (navDropBps > 1000) {
                     triggered = true;
                 }
@@ -374,11 +377,19 @@ contract EngineVault {
             if (nav > 0) {
                 lastKnownNav = nav;
             }
+            if (!navEvaluated) {
+                signalsReady = false;
+            }
         }
 
         uint256 oraclePrice = _getOraclePrice1e18();
         uint256 spotPrice = _getBasePrice1e18();
-        if (oraclePrice > 0 && spotPrice > 0) {
+        bool oracleApplicable = address(volatilityOracle) != address(0) && v2Pair != address(0);
+        bool oracleEvaluated = oraclePrice > 0 && spotPrice > 0;
+        if (oracleApplicable && !oracleEvaluated) {
+            signalsReady = false;
+        }
+        if (oracleEvaluated) {
             uint256 deviationBps = MathLib.absDiff(oraclePrice, spotPrice) * 10000 / oraclePrice;
             if (deviationBps > 500) {
                 triggered = true;
@@ -393,6 +404,10 @@ contract EngineVault {
         }
 
         if (!triggered && riskMode == RiskMode.ONLY_UNWIND) {
+            if (!signalsReady) {
+                safeCycleCount = 0;
+                return;
+            }
             safeCycleCount++;
             if (safeCycleCount >= safeCycleThreshold) {
                 RiskMode oldMode = riskMode;

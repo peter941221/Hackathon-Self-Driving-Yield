@@ -106,77 +106,54 @@ Rule:
 2) Critical Findings & Concrete Enhancement Proposals
 ------------------------------------------------------------------------------
 
-2.1 Flash / Atomic Rebalance (deliverability risk)
+2.1 Flash / Atomic Rebalance (deliverability)
+
+Status (2026-03-05):
+  - Implemented vault-native Pancake V2 flash swap path using a dedicated `flashPair`.
+  - Removed external FlashRebalancer dependency and the circular deployment problem.
 
 Why this matters:
   The pitch highlights "Atomic rebalance via Flash Swap". If it cannot be
   executed on-chain with the current contract topology, it becomes an investor
   red flag (claims vs reality).
 
-Key issues to resolve (architecture-level):
-
-  A) Deployment circular dependency
-     - Vault constructor wants flashRebalancer (immutable).
-     - Rebalancer constructor wants vault (immutable).
-     => cannot deploy both without CREATE2 precomputation or a one-time init.
-
-  B) Call-stack reentrancy deadlock
-     - cycle() is nonReentrant.
-     - cycle() calls executeFlashRebalance(), which triggers a callback that
-       calls back into the vault.
-     - If callback entrypoint is also nonReentrant, the reentrant entry will
-       revert.
-
-Proposed solutions (choose 1):
-
-Option 1 (recommended): implement flash callback in the Vault, remove the
-external FlashRebalancer contract
-  - Vault calls pair.swap(...) directly.
-  - Vault implements pancakeCall(...) and checks:
-      msg.sender == v2Pair
+Key implementation points:
+  - Vault calls `IPancakePairV2(flashPair).swap(...)` directly during STORM when
+    deviation exceeds the rebalance threshold.
+  - Vault implements `pancakeCall(...)` and enforces:
+      msg.sender == flashPair
       sender == address(this)
-      borrowed token/amount match a pre-set "flash intent"
-  - Replace generic nonReentrant with:
-      - a single nonReentrant on user entrypoints (deposit/redeem/cycle)
-      - a dedicated flashCallback guard to allow internal callback during cycle
-        without opening general reentrancy.
+      inFlashRebalance == true
+      borrowed amount matches a pre-set "flash intent"
+  - `flashPair` MUST be different from the LP pair (`v2Pair`) to avoid the
+    UniswapV2 pair `lock()` deadlock.
+  - Repay amount is computed from `flashPair` reserves via
+    `PancakeLibrary.getAmountIn`.
 
-Option 2: keep FlashRebalancer but redesign locks + deployment
-  - Deployment: CREATE2 to precompute vault address OR a one-time initialize()
-    for setting vault address (one-time only, no admin thereafter).
-  - Locks: allow callback during cycle by removing nonReentrant from the callback
-    entry, and enforce strict sender/phase checks.
+Validation (P0, Risk=H):
+  - Unit: `test/FlashSwapAtomicCycle.t.sol` demonstrates atomic flash path works
+    even when LP pair is lock-guarded (by using a separate `flashPair`).
+  - Regression: `forge test` passes.
 
-Validation plan (P0, Risk=H):
-  - Fork integration test on BSC (router + pair + real reserves)
-  - A "flash happy path" test that:
-      cycle() enters STORM -> flash borrow -> remove LP -> add LP -> repay
-  - Negative tests: wrong caller, wrong amount, wrong token, repay shortfall.
-  - Invariant: totalAssets after cycle >= totalAssets before - bounded costs.
+Remaining investor-grade gaps:
+  - Fork integration test on BSC (router + pair + real reserves) executing the
+    full STORM flash happy path.
+  - Negative tests around the vault callback (wrong caller / wrong amount /
+    repay shortfall) and operational monitoring for `flashPair` liquidity.
 
-2.1.1 Reality Check (repo state today)
+2.1.1 Reality Check (repo state as of 2026-03-05)
 
-This repo currently ships with the flash path effectively disabled / non-functional:
-
-  - Deploy scripts pass flashRebalancer = address(0), so the STORM flash branch
-    never executes.
-  - Even if flashRebalancer were wired, the current call stack would deadlock on
-    nonReentrant because the flash callback re-enters the vault while cycle()
-    holds the reentrancy lock.
-
-Illustrative call stack:
+Updated call stack (works):
 
   cycle() [nonReentrant]
     -> _rebalanceAssets()
-      -> FlashRebalancer.executeFlashRebalance()
-        -> Pair.swap(..., data)
-          -> FlashRebalancer.pancakeCall(...)
-            -> EngineVault.onFlashRebalance(...) [nonReentrant]  ==> REVERT
+      -> _executeFlashRebalance()
+        -> flashPair.swap(..., data)
+          -> EngineVault.pancakeCall(...) [gated, no nonReentrant]  ==> OK
 
-Investor implication:
-  If "Atomic Flash Rebalance" is a headline feature, it must be turned into a
-  demonstrably working path (tests + fork demo), or the narrative should be
-  adjusted to avoid over-claiming.
+Operational note:
+  - If `flashPair == address(0)`, the vault falls back to the incremental
+    rebalance path (no flash swap).
 
 
 2.2 Volatility estimator (time-scale correctness)
@@ -186,7 +163,13 @@ Problem:
   dt (time elapsed). If the snapshot interval changes, the metric's meaning
   changes. Regime thresholds (1%/3%) become ambiguous.
 
-Enhancement A: dt-normalized variance (cheap, no log)
+Status (2026-03-05):
+  - Implemented dt-normalized RMS return scaled to the oracle's
+    `minSnapshotInterval` horizon.
+  - This preserves the existing scale when dt == minSnapshotInterval, while
+    making the estimator stable when dt varies (missed cycles / variable cadence).
+
+Implemented: dt-normalized variance (cheap, no log)
 
 For each interval i:
   r_i = (P_i - P_{i-1}) / P_{i-1}      (simple return, signed)
@@ -381,6 +364,12 @@ RiskMode exit is based on "N consecutive safe cycles". Today, "safe" can be
 counted even when key signals are unavailable (e.g., oraclePrice==0 / nav==0),
 because triggered remains false and safeCycleCount increments.
 
+Status (2026-03-05):
+  - Implemented "signalsReady" gating in `EngineVault._circuitBreakerCheck()`:
+    safeCycleCount resets to 0 when NAV or oracle-deviation signals are not
+    evaluated.
+  - Added unit test: `test/EngineVaultRiskMode.t.sol::testSafeCyclesRequireOracleSignals`.
+
 Mitigation:
   - Only increment safeCycleCount when BOTH of:
       - NAV check is evaluated (nav>0 and lastKnownNav>0), AND
@@ -422,11 +411,13 @@ Mitigation options (choose based on UX goals):
 3) Suggested Milestones (implementation plan)
 ------------------------------------------------------------------------------
 
-P0 (1-2 days)
-  - Decide flash architecture, make it deployable, add fork integration tests.
+P0 (done)
+  - Flash architecture: vault-native Pancake V2 flash swap via `flashPair`.
+  - Unit tests for atomic flash path and lock-avoidance.
+  - Remaining: fork integration test on BSC with real liquidity.
 
 P1 (2-4 days)
-  - dt-normalized vol + hysteresis regime switching
+  - hysteresis regime switching (anti-churn)
   - partial hedge close logic (convergent control)
 
 P2 (3-7 days)

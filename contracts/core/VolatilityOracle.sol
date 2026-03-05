@@ -62,6 +62,7 @@ contract VolatilityOracle {
         uint256 sumSquaredReturns = 0;
         uint256 count = 0;
         uint256 prevPrice = 0;
+        uint256 horizon = minSnapshotInterval == 0 ? 1 : uint256(minSnapshotInterval);
 
         for (uint8 i = 1; i < snapshotCount; i++) {
             uint8 curr = (snapshotIndex + WINDOW_SIZE - i) % WINDOW_SIZE;
@@ -72,6 +73,10 @@ contract VolatilityOracle {
             if (currSnap.timestamp == 0 || prevSnap.timestamp == 0) {
                 continue;
             }
+            uint256 dt = uint256(currSnap.timestamp - prevSnap.timestamp);
+            if (dt == 0) {
+                continue;
+            }
 
             uint256 price = _twapPrice1e18(prevSnap, currSnap);
             if (prevPrice == 0) {
@@ -80,8 +85,9 @@ contract VolatilityOracle {
             }
 
             int256 returnBps = int256((price * 10000) / prevPrice) - 10000;
-            uint256 squared = uint256(returnBps >= 0 ? returnBps : -returnBps);
-            sumSquaredReturns += squared * squared;
+            uint256 absReturnBps = uint256(returnBps >= 0 ? returnBps : -returnBps);
+            uint256 squared = absReturnBps * absReturnBps;
+            sumSquaredReturns += (squared * horizon) / dt;
             count++;
             prevPrice = price;
         }

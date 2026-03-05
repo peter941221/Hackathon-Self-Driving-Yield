@@ -107,3 +107,91 @@
   - `forge test` → 40/40 通过 (含invariant测试)
   - `forge script script/ForkCycleDemo.s.sol` → 成功输出 Shares/Regime/TotalAssets
 - 剩余任务: 录制Demo视频 + 填写DoraHacks表单。
+
+## 2026-02-27
+- 恢复记忆并完成全量文档扫描与摘要: `README.md` / `ARCHITECTURE.md` / `ECONOMICS.md` / `THREAT_MODEL.md` / `docs/*` / `DEPLOYMENT_INPUTS.md` / `lib/forge-std/*`。
+- 汇总当前缺口: Demo 视频仍未完成，DoraHacks 表单待提交（见 `docs/SUBMISSION_CHECKLIST.md`）。
+
+## 2026-02-28
+- 使用 `visual-explainer` 技能一次性产出 4 份英文可视化 HTML（架构图/流程图/审计表/项目回顾），输出到 `C:/Users/peter/.agent/diagrams/`：
+  - `sdy-architecture-blueprint.html`
+  - `sdy-cycle-flow.html`
+  - `sdy-capability-audit.html`
+  - `sdy-project-recap.html`
+- 页面实现细节：流程页使用 Mermaid + ELK 布局并带缩放/拖拽控件；回顾页使用响应式 TOC（桌面侧边栏 + 移动端横向导航）；其余页面使用自包含 CSS Grid / table 结构。
+- 执行最小可行校验（Non-code validation）：
+  - `Get-ChildItem C:\\Users\\peter\\.agent\\diagrams\\sdy-*.html` 确认 4 文件存在；
+  - 各文件 `Get-Content -TotalCount 2` 确认 `<!DOCTYPE html>` 与 `lang=\"en\"`；
+  - `Start-Process` 成功打开 4 个页面。
+- 根据用户反馈将 4 份 HTML 字体升级为更 Geek 风格：
+  - 统一改为 `Orbitron`（标题/展示）+ `JetBrains Mono`（正文/代码）；
+  - 更新文件：`sdy-architecture-blueprint.html`、`sdy-cycle-flow.html`、`sdy-capability-audit.html`、`sdy-project-recap.html`；
+  - 复核 `rg \"Orbitron|JetBrains Mono\"` 命中 4 文件并重新 `Start-Process` 打开确认。
+- README 页面更新（用于 GitHub 展示）：
+  - 新增 `## About` 区块，补充项目定位与目标；
+  - 在 `## Architecture (High-Level)` 后新增 `cycle()` Mermaid 流程图（从 pre-check 到 payout 的完整状态流）；
+  - 修复 Demo Video 与 Key Ideas 附近的缩进/代码块格式，确保 GitHub Markdown 正常渲染。
+- 根据用户新要求将 README 的 About 迁移到 GitHub 仓库右侧 About 面板：
+  - 通过 `gh repo edit peter941221/Hackathon-Self-Driving-Yield --description ...` 设置仓库 description；
+  - 从 `README.md` 删除 `## About` 区块，实现“move”而非重复；
+  - 使用 `gh repo view --json description` 验证写入成功。
+- README Mermaid 视觉增强：
+  - 为 `cycle()` 流程图新增 `%%{init: ...}%%` 主题变量（线条与主色统一）；
+  - 增加 `classDef` 语义配色（start/compute/decision/risk/rebalance/stable）并对节点分组上色；
+  - 目标：在 GitHub 渲染中更易读且“颜色即语义”。
+
+## 2026-03-01
+- 按用户要求将 `README.md` 中的 `cycle()` Mermaid 图替换为 ASCII 彩色流程图：
+  - 删除 Mermaid 代码块；
+  - 新增带颜色图例（START/COMPUTE/DECISION/RISK/REBALANCE/STABLE）的 ASCII 流程；
+  - 保持原流程语义与阶段顺序，便于 GitHub 直接展示。
+- 修复“GitHub 页面未变化”问题：
+  - 发现本地已改但远端 `origin/main` 仍是旧 Mermaid；
+  - 提交 `README.md` 并执行 `git push origin HEAD:main`；
+  - 复核远端 README 已显示 `cycle() Flow (ASCII Color)` 与 `Legend`。
+- 根据新需求回退 README 图表展示方式：
+  - 将 `cycle()` 区块改回 Mermaid 流程图；
+  - 新增 ANSI 颜色图例代码块（不再把流程图整体改为 ASCII）；
+  - 已推送到 `origin/main`，提交 `1d76491`。
+- 修复 ANSI 未渲染问题（README）：
+  - 将 ANSI 图例从字符串形式（`\u001b`）改为真实 ESC 字节（`0x1B`）；
+  - 保留 Mermaid 主流程图不变；
+  - 提交并推送 `fc079d7` 到 `origin/main`。
+- 按用户要求同时启用方案 2 和 3（README）：
+  - 删除 ANSI 图例；
+  - 保留 Mermaid 流程图；
+  - 新增 Emoji Legend（语义色块）+ Badge Legend（shields.io）；
+  - 提交并推送 `30eb5b0` 到 `origin/main`。
+- 针对“页面仍显示 ANSI”再次核验：
+  - 本地 `README.md` 与 `origin/main:README.md` 均为 `cycle() Flow (Mermaid + Legends)`；
+  - 通过 `raw.githubusercontent.com` 抓取主分支 README，确认无 `ANSI` 文本与 ESC 字节；
+  - 结论：截图来自旧缓存/旧提交视图，当前主分支内容已正确。
+- 按用户要求“remove and restore”执行回滚：
+  - 删除 Emoji/Badge legends；
+  - 恢复原始 `cycle()` Mermaid 区块（含 `%%{init...}%%` 与 `classDef` 分组配色）；
+  - 提交并推送 `e873b82` 到 `origin/main`。
+
+## 2026-03-05
+- 深度复核核心数学/会计路径（`EngineVault` / `VolatilityOracle` / `AsterAlpAdapter`），并修复 3 个高风险问题：
+  - **ALP 估值尺度修正**：将 `alpPrice()` 按 1e8 价格尺度计入 USD 估值与 burn 反推（避免资产估值偏差 1e10 倍）。
+  - **NAV 跌幅断路器下溢**：`lastKnownNav - nav` 在 NAV 上涨时会下溢导致 `cycle()` 直接 revert；已改为仅在 `nav < lastKnownNav` 时计算跌幅。
+  - **bounty 吃本金**：`cycle()` 的 profit bounty 以前会把用户净存入当作“利润”；已在 `deposit/redeem` 同步调整 `lastTotalAssets`，把净流入/流出从 profit baseline 中剔除。
+- 补回归测试：
+  - `test/BountyEdgeCases.t.sol` 新增 `testBountyDoesNotCountDepositsAsProfit`；
+  - `test/EngineVaultRiskMode.t.sol` 新增 `testNavIncreaseDoesNotRevert`；并统一 mock `alpPrice` 为 1e8 标尺。
+- 验证：`forge test` → **42/42 通过**（含 invariant suites）。
+- 已推送修复到远端：`main` 提交 `01531f7`。
+- 新增深度改进提案文档（待评审后可二次实现）：`enhancement.txt`（包含：Flash 原子再平衡可落地方案、dt 归一化波动率/EWMA、Regime hysteresis、成本感知再平衡、对冲部分平仓、估值抗操纵、回测升级路线图）。
+- 对 `enhancement.txt` 做第二轮深度研究并补充新增发现（未改代码，仅补文档）：
+  - 明确当前 repo 现实状态：Flash path 在脚本中被禁用（`flashRebalancer = address(0)`），且即使接入也会被 `nonReentrant` 调用栈死锁；需先把“可部署+可执行闭环”做实，否则应下调对外叙事。
+  - 新增改进点：SafeApprove 兼容（USDT-style allowance）、`maxGasPrice==0` 语义（是否代表 uncapped/disable）、RiskMode safeCycleCount 需避免“信号缺失也计为安全”、decimal 假设边界、share pricing/估值操纵面与缓解选项。
+  - 最小校验：`rg` 确认 `enhancement.txt` 已新增 `2.1.1` 与 `2.9` 章节。
+- 把“Flash 原子再平衡”做实（落地到可部署 + 可测试闭环）：
+  - `EngineVault` 移除 `FlashRebalancer` 依赖，改为 vault 内部直接执行 Pancake V2 flash swap（`flashPair.swap`）并在 vault 内实现 `pancakeCall` 回调。
+  - 引入独立 `flashPair`（要求与 LP 的 `v2Pair` 不同）以规避 UniswapV2 `lock()` 死锁风险；回调中加入严格的 caller/phase/amount 校验。
+  - 更新 `Deploy.s.sol` / `ForkCycleDemo.s.sol`：支持 `FLASH_PAIR` 环境变量，并默认推导 base/WBNB 作为 flash pair。
+  - 新增单测：`test/FlashSwapAtomicCycle.t.sol`（验证 flashPair!=v2Pair 的原子路径可执行，且不会触发锁死）。
+  - README 同步更新 Flash 机制描述与部署参数，并推送到 `origin/main`（提交 `9d4133f`）。
+- 风控与数学算法加强（第三轮落地）：
+  - RiskMode 的 safeCycleCount 改为“信号可评估才计数”，避免 oracle/spot/nav 缺失导致假恢复（并补单测覆盖）。
+  - 波动率估计加入 dt 归一化（按 `minSnapshotInterval` 作为 horizon 缩放），降低不同调用节奏导致的 regime 漂移风险。

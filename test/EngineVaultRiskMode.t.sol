@@ -73,6 +73,94 @@ contract MockAsterDiamond {
 }
 
 contract EngineVaultRiskModeTest is Test {
+    function testSafeCyclesRequireOracleSignals() public {
+        MockERC20 asset = new MockERC20();
+        MockERC20 baseToken = new MockERC20();
+        asset.mint(address(this), 1_000e18);
+
+        address base = address(baseToken);
+        MockPair pair = new MockPair(base, address(asset));
+        VolatilityOracle oracle = new VolatilityOracle(address(pair), true, 60, 2);
+
+        EngineVault vault = new EngineVault(
+            EngineVault.Addresses({
+                asset: IERC20(address(asset)),
+                asterDiamond: address(0),
+                pancakeFactory: address(0),
+                v2Pair: address(pair),
+                pairBase: base,
+                pairQuote: address(asset),
+                bnbUsdtPair: address(0),
+                volatilityOracle: oracle,
+                flashPair: address(0)
+            }),
+            EngineVault.Config({
+                enableExternalCalls: false,
+                minCycleInterval: 0,
+                rebalanceThresholdBps: 500,
+                deltaBandBps: 200,
+                profitBountyBps: 0,
+                maxBountyBps: 0,
+                bufferCapBps: 2000,
+                calmAlpBps: 4000,
+                calmLpBps: 5700,
+                normalAlpBps: 6000,
+                normalLpBps: 3700,
+                stormAlpBps: 8000,
+                stormLpBps: 1700,
+                safeCycleThreshold: 2,
+                maxGasPrice: 0,
+                swapSlippageBps: 50
+            })
+        );
+
+        asset.approve(address(vault), 100e18);
+        vault.deposit(100e18, address(this));
+
+        // Build TWAP so oraclePrice>0, then create a large oracle-vs-spot deviation to trigger ONLY_UNWIND.
+        uint32 t0 = uint32(block.timestamp);
+        pair.setReserves(1000, 1000, t0);
+        pair.setCumulative(0, 0);
+        oracle.recordSnapshot();
+
+        vm.warp(block.timestamp + 60);
+        uint256 price1 = uint256(1) << 112;
+        pair.setReserves(1000, 1000, uint32(block.timestamp));
+        pair.setCumulative(price1 * 60, 0);
+        oracle.recordSnapshot();
+
+        vm.warp(block.timestamp + 60);
+        pair.setReserves(1000, 500, uint32(block.timestamp));
+        pair.setCumulative(price1 * 120, 0);
+        vault.cycle();
+
+        assertEq(uint256(vault.riskMode()), uint256(EngineVault.RiskMode.ONLY_UNWIND));
+        assertEq(vault.safeCycleCount(), 0);
+
+        // If oracle/spot signals are unavailable, do NOT advance safeCycleCount.
+        vm.warp(block.timestamp + 60);
+        pair.setReserves(0, 0, uint32(block.timestamp));
+        pair.setCumulative(price1 * 120, 0);
+        vault.cycle();
+        assertEq(uint256(vault.riskMode()), uint256(EngineVault.RiskMode.ONLY_UNWIND));
+        assertEq(vault.safeCycleCount(), 0);
+
+        // Restore signals and count consecutive safe cycles to exit risk mode.
+        vm.warp(block.timestamp + 60);
+        pair.setReserves(1000, 1000, uint32(block.timestamp));
+        pair.setCumulative(price1 * 180, 0);
+        vault.cycle();
+        assertEq(uint256(vault.riskMode()), uint256(EngineVault.RiskMode.ONLY_UNWIND));
+        assertEq(vault.safeCycleCount(), 1);
+
+        vm.warp(block.timestamp + 60);
+        pair.setReserves(1000, 1000, uint32(block.timestamp));
+        pair.setCumulative(price1 * 240, 0);
+        vault.cycle();
+        assertEq(uint256(vault.riskMode()), uint256(EngineVault.RiskMode.NORMAL));
+        assertEq(vault.safeCycleCount(), 0);
+    }
+
     function testPriceDeviationTriggersOnlyUnwind() public {
         MockERC20 asset = new MockERC20();
         MockERC20 baseToken = new MockERC20();
