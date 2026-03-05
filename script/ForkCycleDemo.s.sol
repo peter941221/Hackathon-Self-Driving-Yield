@@ -23,6 +23,7 @@ contract ForkCycleDemo is Script, StdCheats {
         address factory = vm.envOr("PANCAKE_FACTORY", address(0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73));
         address pair = vm.envOr("BTCB_USDT_PAIR", address(0x3F803EC2b816Ea7F06EC76aA2B6f2532F9892d62));
         address bnbUsdtPair = IPancakeFactoryV2(factory).getPair(wbnb, usdt);
+        address flashPair = vm.envOr("FLASH_PAIR", IPancakeFactoryV2(factory).getPair(btcb, wbnb));
 
         bool baseIsToken0 = IPancakePairV2(pair).token0() == btcb;
         VolatilityOracle oracle = new VolatilityOracle(pair, baseIsToken0, 300, 3);
@@ -37,7 +38,7 @@ contract ForkCycleDemo is Script, StdCheats {
                 pairQuote: usdt,
                 bnbUsdtPair: bnbUsdtPair,
                 volatilityOracle: oracle,
-                flashRebalancer: address(0)
+                flashPair: flashPair
             }),
             EngineVault.Config({
                 enableExternalCalls: true,

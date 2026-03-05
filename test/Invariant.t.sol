@@ -88,7 +88,7 @@ contract EngineVaultInvariantTest is StdInvariant, Test {
                 pairQuote: address(0),
                 bnbUsdtPair: address(0),
                 volatilityOracle: oracle,
-                flashRebalancer: address(0)
+                flashPair: address(0)
             }),
             EngineVault.Config({
                 enableExternalCalls: false,

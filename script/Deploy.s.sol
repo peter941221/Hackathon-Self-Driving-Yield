@@ -4,7 +4,6 @@ import {Script, console2} from "forge-std/Script.sol";
 import {EngineVault} from "../contracts/core/EngineVault.sol";
 import {VolatilityOracle} from "../contracts/core/VolatilityOracle.sol";
 import {WithdrawalQueue} from "../contracts/core/WithdrawalQueue.sol";
-import {FlashRebalancer} from "../contracts/adapters/FlashRebalancer.sol";
 import {IERC20} from "../contracts/interfaces/IERC20.sol";
 import {IPancakePairV2} from "../contracts/interfaces/IPancakePairV2.sol";
 import {IPancakeFactoryV2} from "../contracts/interfaces/IPancakeFactoryV2.sol";
@@ -19,9 +18,14 @@ contract Deploy is Script {
         address pair = vm.envAddress("BTCB_USDT_PAIR");
         address wbnb = vm.envOr("WBNB", address(0));
         address bnbUsdtPair = vm.envOr("BNB_USDT_PAIR", address(0));
+        address flashPair = vm.envOr("FLASH_PAIR", address(0));
 
         if (bnbUsdtPair == address(0) && wbnb != address(0) && factory != address(0)) {
             bnbUsdtPair = IPancakeFactoryV2(factory).getPair(wbnb, usdt);
+        }
+
+        if (flashPair == address(0) && wbnb != address(0) && factory != address(0)) {
+            flashPair = IPancakeFactoryV2(factory).getPair(btcb, wbnb);
         }
 
         bool baseIsToken0 = IPancakePairV2(pair).token0() == btcb;
@@ -40,7 +44,7 @@ contract Deploy is Script {
                 pairQuote: usdt,
                 bnbUsdtPair: bnbUsdtPair,
                 volatilityOracle: oracle,
-                flashRebalancer: address(0)
+                flashPair: flashPair
             }),
             EngineVault.Config({
                 enableExternalCalls: true,
@@ -63,13 +67,11 @@ contract Deploy is Script {
         );
 
         WithdrawalQueue queue = new WithdrawalQueue(vault, IERC20(usdt), 30, 100);
-        FlashRebalancer rebalancer = new FlashRebalancer(factory, pair, address(vault));
 
         vm.stopBroadcast();
 
         console2.log("VolatilityOracle", address(oracle));
         console2.log("EngineVault", address(vault));
         console2.log("WithdrawalQueue", address(queue));
-        console2.log("FlashRebalancer", address(rebalancer));
     }
 }

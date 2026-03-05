@@ -164,7 +164,7 @@ contract CycleFullPathTest is Test {
                 pairQuote: address(asset),
                 bnbUsdtPair: address(0),
                 volatilityOracle: VolatilityOracle(address(oracle)),
-                flashRebalancer: address(0)
+                flashPair: address(0)
             }),
             EngineVault.Config({
                 enableExternalCalls: false,

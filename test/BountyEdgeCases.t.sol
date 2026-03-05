@@ -48,7 +48,7 @@ contract BountyEdgeCasesTest is Test {
                 pairQuote: address(0),
                 bnbUsdtPair: address(pair),
                 volatilityOracle: VolatilityOracle(address(0)),
-                flashRebalancer: address(0)
+                flashPair: address(0)
             }),
             EngineVault.Config({
                 enableExternalCalls: false,

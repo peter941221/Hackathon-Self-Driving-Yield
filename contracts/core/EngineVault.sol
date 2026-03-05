@@ -6,12 +6,11 @@ import {VolatilityOracle} from "./VolatilityOracle.sol";
 import {AsterAlpAdapter} from "../adapters/AsterAlpAdapter.sol";
 import {Aster1001xAdapter} from "../adapters/Aster1001xAdapter.sol";
 import {PancakeV2Adapter} from "../adapters/PancakeV2Adapter.sol";
-import {FlashRebalancer, IFlashRebalanceHook} from "../adapters/FlashRebalancer.sol";
 import {PancakeLibrary} from "../libs/PancakeLibrary.sol";
 import {MathLib} from "../libs/MathLib.sol";
 import {ITradingReader} from "../interfaces/ITradingReader.sol";
 
-contract EngineVault is IFlashRebalanceHook {
+contract EngineVault {
     using MathLib for uint256;
 
     IERC20 public immutable asset;
@@ -21,10 +20,12 @@ contract EngineVault is IFlashRebalanceHook {
     address public immutable pairBase;
     address public immutable pairQuote;
     address public immutable bnbUsdtPair;
-    address public immutable flashRebalancer;
+    address public immutable flashPair;
+    address public immutable flashRepayToken;
     VolatilityOracle public immutable volatilityOracle;
     bool public immutable enableExternalCalls;
     bool public immutable baseIsToken0;
+    bool public immutable flashBaseIsToken0;
 
     uint256 public immutable minCycleInterval;
     uint16 public immutable rebalanceThresholdBps;
@@ -92,7 +93,7 @@ contract EngineVault is IFlashRebalanceHook {
         address pairQuote;
         address bnbUsdtPair;
         VolatilityOracle volatilityOracle;
-        address flashRebalancer;
+        address flashPair;
     }
 
     struct Config {
@@ -123,7 +124,7 @@ contract EngineVault is IFlashRebalanceHook {
         pairQuote = addresses.pairQuote;
         bnbUsdtPair = addresses.bnbUsdtPair;
         volatilityOracle = addresses.volatilityOracle;
-        flashRebalancer = addresses.flashRebalancer;
+        flashPair = addresses.flashPair;
         enableExternalCalls = config.enableExternalCalls;
         minCycleInterval = config.minCycleInterval;
         rebalanceThresholdBps = config.rebalanceThresholdBps;
@@ -141,6 +142,19 @@ contract EngineVault is IFlashRebalanceHook {
         maxGasPrice = config.maxGasPrice;
         swapSlippageBps = config.swapSlippageBps;
         currentRegime = VolatilityOracle.Regime.NORMAL;
+
+        if (flashPair != address(0)) {
+            require(addresses.v2Pair != address(0) && addresses.pairBase != address(0), "FLASH_CONFIG");
+            require(flashPair != addresses.v2Pair, "FLASH_PAIR_LOCK");
+            address t0 = IPancakePairV2(flashPair).token0();
+            address t1 = IPancakePairV2(flashPair).token1();
+            require(t0 == addresses.pairBase || t1 == addresses.pairBase, "FLASH_PAIR_TOKENS");
+            flashBaseIsToken0 = t0 == addresses.pairBase;
+            flashRepayToken = flashBaseIsToken0 ? t1 : t0;
+        } else {
+            flashBaseIsToken0 = false;
+            flashRepayToken = address(0);
+        }
 
         if (addresses.v2Pair != address(0) && addresses.pairBase != address(0)) {
             baseIsToken0 = IPancakePairV2(addresses.v2Pair).token0() == addresses.pairBase;
@@ -243,33 +257,57 @@ contract EngineVault is IFlashRebalanceHook {
         emit CycleExecuted(msg.sender, currentRegime, bounty, block.timestamp);
     }
 
-    // slither-disable-next-line reentrancy-no-eth
-    function onFlashRebalance(address tokenBorrowed, address repayToken, uint256 borrowedAmount, uint256 repayAmount)
-        external
-        nonReentrant
-    {
-        require(msg.sender == flashRebalancer, "ONLY_REBALANCER");
-        require(tokenBorrowed != address(0), "ZERO_BORROW");
-        if (!enableExternalCalls) {
-            require(IERC20(repayToken).transfer(msg.sender, repayAmount), "FLASH_REPAY");
+    /// @dev PancakeSwap V2 flash swap callback.
+    ///      Only callable by `flashPair` and only when initiated by this vault.
+    /// slither-disable-next-line reentrancy-no-eth
+    function pancakeCall(address sender, uint256 amount0, uint256 amount1, bytes calldata data) external {
+        require(msg.sender == flashPair, "INVALID_PAIR");
+        require(sender == address(this), "INVALID_SENDER");
+        require(inFlashRebalance, "FLASH_INACTIVE");
+
+        uint256 expectedBorrowed = abi.decode(data, (uint256));
+        uint256 borrowed = flashBaseIsToken0 ? amount0 : amount1;
+        require(borrowed > 0 && borrowed == expectedBorrowed, "BORROW_MISMATCH");
+        require(borrowed == flashBorrowedAmount, "BORROW_STATE");
+
+        address repayToken = flashRepayToken;
+        uint256 repayAmount = _getFlashRepayAmount(borrowed);
+
+        _removeAllLp();
+        _rebalanceAssets();
+        _rebalanceHedge();
+
+        _ensureRepayToken(repayToken, repayAmount);
+        require(IERC20(repayToken).transfer(msg.sender, repayAmount), "FLASH_REPAY");
+        emit FlashRepaid(repayToken, repayAmount);
+    }
+
+    function _executeFlashRebalance(uint256 borrowAmount) internal {
+        if (flashPair == address(0) || v2Pair == address(0) || pairBase == address(0) || pairQuote == address(0)) {
             return;
         }
 
         inFlashRebalance = true;
-        flashBorrowedToken = tokenBorrowed;
-        flashBorrowedAmount = borrowedAmount;
-        emit FlashBorrowed(tokenBorrowed, borrowedAmount);
-        _removeAllLp();
-        _rebalanceAssets();
-        _rebalanceHedge();
-        inFlashRebalance = false;
+        flashBorrowedToken = pairBase;
+        flashBorrowedAmount = borrowAmount;
+        emit FlashBorrowed(pairBase, borrowAmount);
 
+        uint256 amount0Out = flashBaseIsToken0 ? borrowAmount : 0;
+        uint256 amount1Out = flashBaseIsToken0 ? 0 : borrowAmount;
+        IPancakePairV2(flashPair).swap(amount0Out, amount1Out, address(this), abi.encode(borrowAmount));
+
+        inFlashRebalance = false;
         flashBorrowedToken = address(0);
         flashBorrowedAmount = 0;
-        emit FlashRepaid(repayToken, repayAmount);
+    }
 
-        _ensureRepayToken(repayToken, repayAmount);
-        require(IERC20(repayToken).transfer(msg.sender, repayAmount), "FLASH_REPAY");
+    function _getFlashRepayAmount(uint256 borrowed) internal view returns (uint256 repayAmount) {
+        (uint112 r0, uint112 r1, uint32 blockTimestampLast) = IPancakePairV2(flashPair).getReserves();
+        require(blockTimestampLast != 0, "PAIR_NOT_READY");
+
+        uint256 reserveBorrowed = flashBaseIsToken0 ? uint256(r0) : uint256(r1);
+        uint256 reserveRepay = flashBaseIsToken0 ? uint256(r1) : uint256(r0);
+        repayAmount = PancakeLibrary.getAmountIn(borrowed, reserveRepay, reserveBorrowed);
     }
 
     function unwindForWithdraw(uint256 amount) external nonReentrant {
@@ -404,14 +442,12 @@ contract EngineVault is IFlashRebalanceHook {
         }
 
         if (
-            enableExternalCalls && !inFlashRebalance && flashRebalancer != address(0)
+            enableExternalCalls && !inFlashRebalance && flashPair != address(0)
                 && currentRegime == VolatilityOracle.Regime.STORM
         ) {
             uint256 borrowAmount = _calcFlashBorrowAmount(lpDelta, totalValue);
             if (borrowAmount > 0) {
-                FlashRebalancer(flashRebalancer).executeFlashRebalance(
-                    FlashRebalancer.RebalanceParams({borrowAmount: borrowAmount, borrowToken0: baseIsToken0})
-                );
+                _executeFlashRebalance(borrowAmount);
                 return;
             }
         }
@@ -661,13 +697,17 @@ contract EngineVault is IFlashRebalanceHook {
             _swapForExact(pairBase, pairQuote, shortfall);
         } else if (repayToken == pairBase && pairQuote != address(0)) {
             _swapForExact(pairQuote, pairBase, shortfall);
+        } else if (pairQuote != address(0) && repayToken != pairQuote) {
+            _swapForExact(pairQuote, repayToken, shortfall);
+        } else if (pairBase != address(0) && repayToken != pairBase) {
+            _swapForExact(pairBase, repayToken, shortfall);
         }
 
         require(IERC20(repayToken).balanceOf(address(this)) >= repayAmount, "FLASH_REPAY");
     }
 
     function _calcFlashBorrowAmount(int256 lpDelta, uint256 totalValue) internal view returns (uint256 borrowAmount) {
-        if (lpDelta == 0 || v2Pair == address(0)) {
+        if (lpDelta == 0 || v2Pair == address(0) || flashPair == address(0)) {
             return 0;
         }
         uint256 absDelta = lpDelta > 0 ? uint256(lpDelta) : uint256(-lpDelta);
@@ -682,11 +722,11 @@ contract EngineVault is IFlashRebalanceHook {
         // slither-disable-next-line divide-before-multiply
         borrowAmount = (borrowValue * 1e18) / basePrice;
 
-        (uint112 r0, uint112 r1, uint32 blockTimestampLast) = IPancakePairV2(v2Pair).getReserves();
+        (uint112 r0, uint112 r1, uint32 blockTimestampLast) = IPancakePairV2(flashPair).getReserves();
         if (blockTimestampLast == 0) {
             return 0;
         }
-        uint256 reserveBase = baseIsToken0 ? uint256(r0) : uint256(r1);
+        uint256 reserveBase = flashBaseIsToken0 ? uint256(r0) : uint256(r1);
         uint256 cap = reserveBase / 10;
         if (borrowAmount > cap) {
             borrowAmount = cap;

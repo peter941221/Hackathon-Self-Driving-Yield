@@ -8,7 +8,7 @@
   <a href="https://www.youtube.com/watch?v=rdQyEShM0vs">
     <img src="https://img.shields.io/badge/Demo-Video-red?style=for-the-badge&logo=youtube" alt="Demo Video">
   </a>
-  <img src="https://img.shields.io/badge/Tests-40%2F40%20Passing-brightgreen?style=for-the-badge" alt="Tests">
+  <img src="https://img.shields.io/badge/Tests-43%2F43%20Passing-brightgreen?style=for-the-badge" alt="Tests">
   <img src="https://img.shields.io/badge/Platform-BNB%20Chain-yellow?style=for-the-badge" alt="Platform">
   <img src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge" alt="License">
 </p>
@@ -82,9 +82,13 @@ Assumptions and mitigations are expanded in `THREAT_MODEL.md` and `ECONOMICS.md`
 
 - LP rebalancing uses on-chain swaps when the base/quote ratio is off target.
 
-- Flash rebalance computes a borrow amount from LP deviation and caps it to 10% of reserves.
+- Flash rebalance uses Pancake V2 flash swap callback (`pancakeCall`) for atomicity.
 
-- Flash callbacks repay in the opposite token using on-chain reserves.
+- Flash borrow amount is derived from LP deviation and capped to 10% of `flashPair` base reserves.
+
+- Flash repay is computed from `flashPair` reserves (UniswapV2 formula via `PancakeLibrary.getAmountIn`).
+
+- `flashPair` must be different from the LP pair (`v2Pair`) to avoid the UniswapV2 pair `lock()` reentrancy guard.
 
 - Borrowed flash amounts are excluded from target allocation calculations.
 
@@ -120,7 +124,7 @@ flowchart TD
   I -->|Yes| J[Reduce-only path<br/>unwind hedge remove LP burn ALP]
   I -->|No| K[Select rebalance path]
   K --> L{Deviation exceeds threshold}
-  L -->|Yes| M[FlashRebalancer atomic path]
+  L -->|Yes| M[Pancake V2 flash swap<br/>atomic path]
   L -->|No| N[Incremental swap and LP adjustment]
   M --> O[Phase 5 hedge adjustment]
   N --> O
@@ -155,8 +159,6 @@ flowchart TD
 - `contracts/core/VolatilityOracle.sol`
 
 - `contracts/core/WithdrawalQueue.sol`
-
-- `contracts/adapters/FlashRebalancer.sol`
 
 
 ## Libraries & Interfaces
@@ -259,6 +261,8 @@ Deployment script: `script/Deploy.s.sol`
 ```bash
 export BSC_TESTNET_RPC_URL="https://data-seed-prebsc-1-s1.binance.org:8545/"
 export PRIVATE_KEY="<your key>"
+# Optional: separate flash swap pair (must include pairBase). Defaults to BTCB/WBNB if factory+WBNB are set.
+export FLASH_PAIR="<pair address>"
 forge script script/Deploy.s.sol --rpc-url "$BSC_TESTNET_RPC_URL" --broadcast --verify
 ```
 
@@ -269,8 +273,6 @@ Deployed addresses (fill after broadcast):
 - VolatilityOracle: TBD
 
 - WithdrawalQueue: TBD
-
-- FlashRebalancer: TBD
 
 
 ## Static Analysis

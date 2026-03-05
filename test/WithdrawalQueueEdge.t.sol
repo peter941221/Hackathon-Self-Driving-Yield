@@ -44,7 +44,7 @@ contract WithdrawalQueueEdgeTest is Test {
                 pairQuote: address(0),
                 bnbUsdtPair: address(0),
                 volatilityOracle: VolatilityOracle(address(0)),
-                flashRebalancer: address(0)
+                flashPair: address(0)
             }),
             EngineVault.Config({
                 enableExternalCalls: false,

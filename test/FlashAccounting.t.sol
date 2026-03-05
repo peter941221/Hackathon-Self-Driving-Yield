@@ -68,7 +68,7 @@ contract FlashAccountingTest is Test {
                 pairQuote: address(asset),
                 bnbUsdtPair: address(0),
                 volatilityOracle: oracle,
-                flashRebalancer: address(0)
+                flashPair: address(0)
             }),
             EngineVault.Config({
                 enableExternalCalls: false,
@@ -112,7 +112,7 @@ contract FlashAccountingTest is Test {
                 pairQuote: address(asset),
                 bnbUsdtPair: address(0),
                 volatilityOracle: oracle,
-                flashRebalancer: address(0)
+                flashPair: address(0)
             }),
             EngineVault.Config({
                 enableExternalCalls: false,
