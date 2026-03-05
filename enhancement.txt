@@ -154,6 +154,30 @@ Validation plan (P0, Risk=H):
   - Negative tests: wrong caller, wrong amount, wrong token, repay shortfall.
   - Invariant: totalAssets after cycle >= totalAssets before - bounded costs.
 
+2.1.1 Reality Check (repo state today)
+
+This repo currently ships with the flash path effectively disabled / non-functional:
+
+  - Deploy scripts pass flashRebalancer = address(0), so the STORM flash branch
+    never executes.
+  - Even if flashRebalancer were wired, the current call stack would deadlock on
+    nonReentrant because the flash callback re-enters the vault while cycle()
+    holds the reentrancy lock.
+
+Illustrative call stack:
+
+  cycle() [nonReentrant]
+    -> _rebalanceAssets()
+      -> FlashRebalancer.executeFlashRebalance()
+        -> Pair.swap(..., data)
+          -> FlashRebalancer.pancakeCall(...)
+            -> EngineVault.onFlashRebalance(...) [nonReentrant]  ==> REVERT
+
+Investor implication:
+  If "Atomic Flash Rebalance" is a headline feature, it must be turned into a
+  demonstrably working path (tests + fork demo), or the narrative should be
+  adjusted to avoid over-claiming.
+
 
 2.2 Volatility estimator (time-scale correctness)
 
@@ -313,6 +337,87 @@ Enhancement roadmap for backtesting:
       CAGR, max drawdown, realized vol, Sharpe/Sortino, turnover, cost breakdown.
 
 
+2.9 Second-pass Additional Findings (not covered in v1)
+
+2.9.1 Approval compatibility (USDT-style approve semantics)
+
+Many adapters call approve(spender, amount) repeatedly. Some ERC20 variants
+(notably legacy USDT implementations) require setting allowance to 0 before
+setting it to a new non-zero value, otherwise approve can revert.
+
+Mitigation:
+  - Implement a small SafeApprove helper that:
+      if allowance(owner, spender) != 0 and amount != 0:
+         approve(spender, 0)
+      approve(spender, amount)
+  - Use it in: PancakeV2Adapter, AsterAlpAdapter, Aster1001xAdapter.
+
+Validation:
+  - Unit test using a mock "USDT-like" token that reverts on nonzero->nonzero approve.
+
+
+2.9.2 maxGasPrice semantics (liveness vs safety)
+
+Current bounty code uses:
+  gasPriceUsed = min(tx.gasprice, maxGasPrice)
+
+If maxGasPrice == 0, gasPriceUsed becomes 0 for all realistic tx.gasprice, and
+minBounty becomes 0. This disables the "gas reimbursement" component entirely.
+
+Action:
+  - Decide and document one meaning:
+      A) maxGasPrice == 0 means "uncapped" (use tx.gasprice)
+      B) maxGasPrice == 0 means "disable minBounty"
+  - If (A), implement:
+      gasPriceUsed = (maxGasPrice == 0) ? tx.gasprice : min(tx.gasprice, maxGasPrice)
+
+Validation:
+  - Unit test: maxGasPrice==0 should not force gasPriceUsed==0 (if choosing A).
+
+
+2.9.3 RiskMode safe-cycle counting (avoid false recovery)
+
+RiskMode exit is based on "N consecutive safe cycles". Today, "safe" can be
+counted even when key signals are unavailable (e.g., oraclePrice==0 / nav==0),
+because triggered remains false and safeCycleCount increments.
+
+Mitigation:
+  - Only increment safeCycleCount when BOTH of:
+      - NAV check is evaluated (nav>0 and lastKnownNav>0), AND
+      - oracle deviation check is evaluated (oraclePrice>0 and spotPrice>0),
+    AND both are within thresholds.
+  - Otherwise keep safeCycleCount unchanged (or reset).
+
+Validation:
+  - Unit tests where oraclePrice==0 should not advance safeCycleCount.
+
+
+2.9.4 Price/decimal assumptions (generalization risk)
+
+The current valuation math implicitly assumes:
+  - quote asset uses 18 decimals (USDT on BSC does), and
+  - base & quote decimals are aligned (BTCB/USDT both 18).
+
+If a future deployment uses different decimals (e.g., 6-decimals quote), the
+price and value conversions become inconsistent.
+
+Mitigation:
+  - Normalize using token decimals (or explicitly scope the vault to 18/18 pairs).
+  - Add constructor requires enforcing expected decimals to avoid silent mispricing.
+
+
+2.9.5 Share pricing manipulation surface (oracle / spot mark-to-market)
+
+deposit/redeem uses totalAssets() which depends on spot reserves and oracle
+reads. In low liquidity or manipulable markets, an attacker can distort
+totalAssets during deposit to mint shares cheaply (or redeem expensively).
+
+Mitigation options (choose based on UX goals):
+  - Use TWAP-based pricing for LP valuation instead of spot.
+  - Add deposit/withdraw guards when deviation > threshold (pause mint/redeem).
+  - Batch deposits and settle at cycle() (reduces per-tx oracle manipulation).
+
+
 ------------------------------------------------------------------------------
 3) Suggested Milestones (implementation plan)
 ------------------------------------------------------------------------------
@@ -348,4 +453,3 @@ P2 (3-7 days)
                                             |
                                             v
                                    [Bounty + accounting]
-
