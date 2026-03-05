@@ -1,0 +1,351 @@
+# Enhancement Proposals (Deep Research) — Self-Driving Yield Engine
+Date: 2026-03-05
+Scope: contracts/core/*, contracts/adapters/*, contracts/libs/*, scripts/backtest.py
+Audience: investors, auditors, contributors
+
+------------------------------------------------------------------------------
+0) Executive Summary (1-page)
+------------------------------------------------------------------------------
+
+This repo already captures a strong "self-driving vault" narrative. The next step
+for investor-grade credibility is to harden the math/controls so that:
+
+  - metrics have a clear time scale (volatility),
+  - regime switching doesn't churn near thresholds (hysteresis),
+  - rebalance decisions are cost-aware (slippage + fees + gas + funding),
+  - hedging actions are gradual and liquidation-aware (risk controls),
+  - flash/atomic rebalance is either provably executable or removed from claims.
+
+Top priorities (P0/P1):
+
+P0 (must-have, correctness / deliverability)
+  - Flash rebalance path is currently not a deployable + executable closed loop
+    (constructor circular dependency and nonReentrant call-stack deadlock risk).
+    Decide on a concrete architecture and add fork integration tests.
+
+P1 (math + strategy robustness)
+  - Volatility estimator is not time-normalized; thresholds implicitly depend on
+    snapshot interval. Add dt-normalized variance and/or EWMA smoothing.
+  - Add regime hysteresis + minimum regime duration to prevent churn.
+  - Make rebalancing cost-aware: rebalance only if expected improvement exceeds
+    estimated execution cost (slippage + fees + gas + funding).
+
+P2 (parameter safety + ops)
+  - Add constructor invariant checks (bps bounds, allocation sums <= 10000).
+  - Improve the backtest to use LP IL math + funding curves instead of random
+    noise; make it reproducible and parameter-calibrated.
+
+
+------------------------------------------------------------------------------
+1) Current Mathematical Model (as implemented)
+------------------------------------------------------------------------------
+
+1.1 TWAP (Time-Weighted Average Price)
+
+Oracle reads cumulative price (UQ112x112) and computes:
+
+  TWAP = (C(t2) - C(t1)) / (t2 - t1)
+  price1e18 = TWAP * 1e18 / 2^112
+
+
+1.2 Volatility metric (RMS of simple returns)
+
+For consecutive TWAP prices P_i:
+
+  returnBps_i = (P_i / P_{i-1} - 1) * 10000
+  volBps = sqrt( mean( returnBps_i^2 ) )
+
+Notes:
+  - This is RMS, not de-meaned standard deviation. Drift (trend) can inflate it.
+  - dt is not used, so the metric depends on snapshot time spacing.
+
+
+1.3 Regime switching (hard thresholds)
+
+  CALM   if volBps < 100   (1%)
+  NORMAL if volBps < 300   (3%)
+  STORM  otherwise
+
+
+1.4 Target allocation (discrete mapping)
+
+For each regime:
+  (alpBps, lpBps) are fixed; buffer = 10000 - alpBps - lpBps
+
+Rebalance triggers if:
+  deviationBps = max(|alp-target|, |lp-target|) / totalValue * 10000
+  deviationBps >= rebalanceThresholdBps
+
+
+1.5 Hedge sizing (delta-band rule)
+
+Compute LP base exposure (qty):
+  lpBaseQty1e10 = amtBase * 1e10 / 1e18
+
+Read 1001x short exposure:
+  hedgeQty1e10 = sum(qty short positions)
+
+Band (hysteresis-lite):
+  band = lpBaseQty1e10 * deltaBandBps / 10000
+
+Rule:
+  - If under-hedged by > band: open short for deltaQty
+  - If over-hedged by > band: close ALL short positions
+
+
+1.6 Bounty (incentive)
+
+  profitSinceLastCycle = max(0, totalAssets - lastTotalAssets)
+  profitBounty = profitSinceLastCycle * profitBountyBps / 10000
+
+  minBounty = gasPriceUsed * estimatedGas * bnbPrice
+  bounty = clamp( max(profitBounty, minBounty), maxBounty, bufferCap, cashBalance )
+
+
+------------------------------------------------------------------------------
+2) Critical Findings & Concrete Enhancement Proposals
+------------------------------------------------------------------------------
+
+2.1 Flash / Atomic Rebalance (deliverability risk)
+
+Why this matters:
+  The pitch highlights "Atomic rebalance via Flash Swap". If it cannot be
+  executed on-chain with the current contract topology, it becomes an investor
+  red flag (claims vs reality).
+
+Key issues to resolve (architecture-level):
+
+  A) Deployment circular dependency
+     - Vault constructor wants flashRebalancer (immutable).
+     - Rebalancer constructor wants vault (immutable).
+     => cannot deploy both without CREATE2 precomputation or a one-time init.
+
+  B) Call-stack reentrancy deadlock
+     - cycle() is nonReentrant.
+     - cycle() calls executeFlashRebalance(), which triggers a callback that
+       calls back into the vault.
+     - If callback entrypoint is also nonReentrant, the reentrant entry will
+       revert.
+
+Proposed solutions (choose 1):
+
+Option 1 (recommended): implement flash callback in the Vault, remove the
+external FlashRebalancer contract
+  - Vault calls pair.swap(...) directly.
+  - Vault implements pancakeCall(...) and checks:
+      msg.sender == v2Pair
+      sender == address(this)
+      borrowed token/amount match a pre-set "flash intent"
+  - Replace generic nonReentrant with:
+      - a single nonReentrant on user entrypoints (deposit/redeem/cycle)
+      - a dedicated flashCallback guard to allow internal callback during cycle
+        without opening general reentrancy.
+
+Option 2: keep FlashRebalancer but redesign locks + deployment
+  - Deployment: CREATE2 to precompute vault address OR a one-time initialize()
+    for setting vault address (one-time only, no admin thereafter).
+  - Locks: allow callback during cycle by removing nonReentrant from the callback
+    entry, and enforce strict sender/phase checks.
+
+Validation plan (P0, Risk=H):
+  - Fork integration test on BSC (router + pair + real reserves)
+  - A "flash happy path" test that:
+      cycle() enters STORM -> flash borrow -> remove LP -> add LP -> repay
+  - Negative tests: wrong caller, wrong amount, wrong token, repay shortfall.
+  - Invariant: totalAssets after cycle >= totalAssets before - bounded costs.
+
+
+2.2 Volatility estimator (time-scale correctness)
+
+Problem:
+  Current volBps is computed from returns between snapshots but does not include
+  dt (time elapsed). If the snapshot interval changes, the metric's meaning
+  changes. Regime thresholds (1%/3%) become ambiguous.
+
+Enhancement A: dt-normalized variance (cheap, no log)
+
+For each interval i:
+  r_i = (P_i - P_{i-1}) / P_{i-1}      (simple return, signed)
+  dt_i = t_i - t_{i-1}                (seconds)
+
+Compute per-second variance estimate:
+  varPerSec = mean( r_i^2 / dt_i )
+
+Choose a target horizon T (e.g. 1 hour or 1 day):
+  vol_T = sqrt( varPerSec * T )
+  volBps_T = vol_T * 10000
+
+This makes thresholds stable even if minSnapshotInterval is tuned.
+
+Enhancement B: EWMA variance (smoother regimes)
+
+Update on each new return:
+  sigma2 = lambda * sigma2 + (1 - lambda) * (r^2 / dt)
+  vol_T = sqrt(sigma2 * T)
+
+Advantages:
+  - O(1) update, avoids looping over WINDOW_SIZE every view call.
+  - Regime changes become less noisy.
+
+Validation plan (P1, Risk=M):
+  - Unit tests for constant prices => vol=0
+  - Spike tests => regime switches within expected cycles
+  - Property tests: time scaling invariance (dt halved/doubled)
+
+
+2.3 Regime switching (anti-churn)
+
+Problem:
+  Hard thresholds can cause frequent flipping near boundary, increasing trading
+  frequency and costs.
+
+Enhancement: hysteresis + cooldown
+
+Example (illustrative):
+  Enter STORM: vol >= 3.0%
+  Exit  STORM: vol <= 2.5%
+
+Also add:
+  - minRegimeDurationSec (do not switch again for N seconds)
+  - or require K consecutive confirmations before switching.
+
+Alternative: continuous allocation function
+  Replace discrete bps table with a continuous mapping:
+
+    alpWeight(vol) = clamp( a + b * sigmoid(k * (vol - v0)), [min,max] )
+    lpWeight = clamp( 1 - alpWeight - buffer, >= 0 )
+
+This prevents discontinuous jump trades.
+
+
+2.4 Rebalance trigger (transaction-cost aware control)
+
+Problem:
+  Trigger is purely deviation-based, ignoring execution costs. In small TVL or
+  low liquidity, costs dominate and rebalancing can be net-negative.
+
+Enhancement: "benefit > cost" gate
+
+Estimate cost components:
+  - swap slippage (from constant-product formula using reserves)
+  - LP add/remove fees
+  - 1001x open/close fees
+  - funding (expected daily funding * expected holding time)
+  - gas (maxGasPrice-capped)
+
+Only rebalance if:
+  expectedBenefitBps >= expectedCostBps + safetyMarginBps
+
+Benefit proxy options:
+  - reduce IL exposure (function of vol and LP share)
+  - increase ALP share when vol rises (expected ALP outperformance)
+
+This turns the strategy into a basic control problem:
+
+  deviation  ->  gate(cost-aware)  ->  action size
+
+
+2.5 Hedge logic (partial closes + liquidation-aware sizing)
+
+Problem:
+  When over-hedged beyond band, the current logic closes ALL short positions.
+  That is a discontinuous control action and can create oscillation and fees.
+
+Enhancements:
+  - Partial close: close only enough qty to return within band.
+  - Margin-aware: keep margin target based on:
+      margin = notional / leverageTarget
+    and ensure health factor stays above a threshold.
+  - Price limit / worstPrice:
+      use TWAP price (or TWAP +/- tolerance) rather than spot-only.
+
+Validation plan (P1, Risk=M/H depending on integration):
+  - Mock positions with varying qty/entryPrice; ensure target convergence.
+  - Fork tests to verify open/close cost and revert surfaces.
+
+
+2.6 Valuation and oracle manipulation (bounty + circuit breaker)
+
+Problem:
+  - LP valuation uses instantaneous reserves (spot), which can be manipulated
+    briefly in low liquidity. That affects totalAssets, rebalance triggers, and
+    bounty.
+
+Enhancements:
+  - Use TWAP for base price in valuation, not spot.
+  - Clamp spot to TWAP band:
+      effectivePrice = clamp(spot, twap*(1±maxDeviation))
+  - Consider a more robust oracle source (e.g., Chainlink) as a secondary check.
+
+Also consider:
+  - Move ONLY_UNWIND trigger to use TWAP-vs-TWAP (two-window) instead of TWAP-vs-spot,
+    reducing single-block manipulation impact.
+
+
+2.7 Parameter invariants (prevent misconfiguration)
+
+Add constructor checks:
+  - for each regime: alpBps + lpBps <= 10000
+  - bps fields <= 10000 (thresholds, bounty bps, caps)
+  - minSamples <= WINDOW_SIZE
+  - maxGasPrice semantics:
+      if maxGasPrice == 0, treat as "uncapped" (use tx.gasprice)
+
+These are cheap and reduce operational risk.
+
+
+2.8 Backtest / research toolchain (investor-grade evidence)
+
+Current scripts/backtest.py is intentionally simple but not faithful:
+  - LP IL is proxied heuristically.
+  - yields are random-noised constants per regime.
+  - no slippage model, no funding curve, no regime hysteresis.
+
+Enhancement roadmap for backtesting:
+  - Use constant-product IL formula for full-range v2 LP:
+      IL(r) = 2*sqrt(r)/(1+r) - 1, where r = P_t / P_0
+  - Model swap slippage using reserves and trade size.
+  - Model funding as a time series (historical or scenario).
+  - Run ablations:
+      fixed allocation vs regime switching vs continuous mapping
+      with/without hedge, with/without cost-aware trigger
+  - Output investor KPIs:
+      CAGR, max drawdown, realized vol, Sharpe/Sortino, turnover, cost breakdown.
+
+
+------------------------------------------------------------------------------
+3) Suggested Milestones (implementation plan)
+------------------------------------------------------------------------------
+
+P0 (1-2 days)
+  - Decide flash architecture, make it deployable, add fork integration tests.
+
+P1 (2-4 days)
+  - dt-normalized vol + hysteresis regime switching
+  - partial hedge close logic (convergent control)
+
+P2 (3-7 days)
+  - cost-aware rebalance trigger
+  - improved backtest with IL + funding + slippage
+  - parameter invariant checks + monitoring/event additions
+
+
+------------------------------------------------------------------------------
+4) ASCII Flow Map (strategy control loop)
+------------------------------------------------------------------------------
+
+(Inputs)
+  TWAP(t) + dt + reserves + positions + cash
+        |
+        v
+  [Volatility estimator] ---> [Regime + hysteresis] ---> [Target allocation]
+        |                               |                       |
+        |                               v                       v
+        |                      [Risk gates / ONLY_UNWIND]   [Cost-aware gate]
+        |                               |                       |
+        v                               v                       v
+  [Pricing/valuation] --------> [Rebalance ALP/LP] -----> [Hedge adjust]
+                                            |
+                                            v
+                                   [Bounty + accounting]
+
