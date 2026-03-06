@@ -178,15 +178,17 @@ python scripts/backtest.py --days 90 --tvl 100000 --cycles-per-day 4 --gas-gwei 
 
 ### 4.1 Baseline Scenario
 
+Snapshot date: `2026-03-06` (trailing 90d CoinGecko BTC path)
+
 ```text
 Source: coingecko
-Market regime days: CALM 10 / NORMAL 65 / STORM 15
+Market regime days: CALM 10 / NORMAL 65 / STORM 14
 
 Strategy       CAGR    AnnVol  Sharpe  MaxDD   CumRet
-dynamic        14.35%  1.15%   11.64   -0.06%  3.36%
-fixed_normal   13.11%  0.68%   18.04    0.00%  3.08%
-pure_alp       23.57%  1.48%   14.35    0.00%  5.36%
-pure_lp        -1.43%  0.68%   -2.11   -0.64% -0.35%
+dynamic        14.29%  1.16%   11.53   -0.06%  3.31%
+fixed_normal   13.08%  0.69%   17.91    0.00%  3.04%
+pure_alp       23.54%  1.48%   14.26    0.00%  5.29%
+pure_lp        -1.44%  0.68%   -2.11   -0.64% -0.35%
 ```
 
 Dynamic cost breakdown:
@@ -195,7 +197,7 @@ Dynamic cost breakdown:
 
 - Hedge trade cost: `$20.36`
 
-- Funding cost: `$497.70`
+- Funding cost: `$491.56`
 
 - Gas cost: `$37.50`
 
@@ -203,13 +205,13 @@ Dynamic cost breakdown:
 
 ```text
 Source: coingecko
-Market regime days: CALM 10 / NORMAL 65 / STORM 15
+Market regime days: CALM 10 / NORMAL 65 / STORM 14
 
 Strategy       CAGR    AnnVol  Sharpe  MaxDD   CumRet
-dynamic        10.02%  1.52%    6.30   -0.17%  2.38%
-fixed_normal    8.68%  0.92%    9.10   -0.02%  2.07%
-pure_alp       22.90%  1.89%   10.91   -0.00%  5.22%
-pure_lp       -11.07%  0.73%  -15.97   -2.85% -2.85%
+dynamic         9.94%  1.52%    6.22   -0.17%  2.34%
+fixed_normal    8.68%  0.92%    9.04   -0.02%  2.05%
+pure_alp       22.87%  1.90%   10.84   -0.00%  5.15%
+pure_lp       -11.04%  0.74%  -15.83   -2.81% -2.81%
 ```
 
 Reading the output:

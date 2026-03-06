@@ -10,7 +10,24 @@
   </a>
   <img src="https://img.shields.io/badge/Tests-48%2F48%20Passing-brightgreen?style=for-the-badge" alt="Tests">
   <img src="https://img.shields.io/badge/Platform-BNB%20Chain-yellow?style=for-the-badge" alt="Platform">
+  <img src="https://img.shields.io/badge/Baseline%20CAGR-14.29%25-2563eb?style=for-the-badge" alt="Baseline CAGR">
+  <img src="https://img.shields.io/badge/Stress%20CAGR-9.94%25-0f766e?style=for-the-badge" alt="Stress CAGR">
+  <img src="https://img.shields.io/badge/Stress%20MaxDD--0.17%25-b45309?style=for-the-badge" alt="Stress MaxDD">
+  <img src="https://img.shields.io/badge/Risk%20Mode-ONLY__UNWIND-be123c?style=for-the-badge" alt="ONLY_UNWIND">
+  <img src="https://img.shields.io/badge/Admin-None-7c3aed?style=for-the-badge" alt="No Admin">
   <img src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge" alt="License">
+</p>
+
+<p align="center">
+  <strong>🧠 Adaptive Yield</strong> • <strong>🛡️ Hedge-Aware NAV</strong> • <strong>📉 LP Drawdown Control</strong> • <strong>🤖 Permissionless Automation</strong>
+</p>
+
+<p align="center">
+  <a href="docs/INVESTOR_ONE_PAGER.md"><img src="docs/assets/investor-one-pager.svg" alt="Investor One-Pager"></a>
+</p>
+
+<p align="center">
+  <em>Click the one-pager to open the markdown version.</em>
 </p>
 
 ---
@@ -39,12 +56,12 @@ ALP  │  ███    │ Stable   │  ██████ │ High yield!
 
 ## Investor Snapshot
 
-**Research window**: 90 days, `$100k` simulated TVL, CoinGecko BTC path, baseline/stress scenario comparison.
+**Research window**: trailing 90 days as of `2026-03-06`, `$100k` simulated TVL, CoinGecko BTC path, baseline/stress scenario comparison.
 
 | Scenario | Dynamic CAGR | Dynamic CumRet | Fixed NORMAL CAGR | Pure LP CAGR | Dynamic MaxDD | Dynamic Trade Days |
 |---|---:|---:|---:|---:|---:|---:|
-| Baseline | 14.35% | 3.36% | 13.11% | -1.43% | -0.06% | 5 |
-| Stress | 10.02% | 2.38% | 8.68% | -11.07% | -0.17% | 5 |
+| Baseline | 14.29% | 3.31% | 13.08% | -1.44% | -0.06% | 5 |
+| Stress | 9.94% | 2.34% | 8.68% | -11.04% | -0.17% | 5 |
 
 Notes:
 

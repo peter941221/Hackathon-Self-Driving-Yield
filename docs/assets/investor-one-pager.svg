@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="1040" viewBox="0 0 1400 1040">
+<defs><linearGradient id="paperbg" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#020617"/><stop offset="100%" stop-color="#111827"/></linearGradient></defs>
+<rect width="1400" height="1040" rx="28" fill="url(#paperbg)"/>
+<rect x="28" y="28" width="1344" height="984" rx="24" fill="#0f172a" stroke="#334155"/>
+<text x="64" y="86" fill="#f8fafc" font-size="34" font-weight="700">Self-Driving Yield Engine • Investor One-Pager</text>
+<text x="64" y="122" fill="#94a3b8" font-size="18">Autonomous hedge-aware vault on BNB Chain • ALP + Pancake V2 LP + 1001x short hedge • No admin • As of 2026-03-06</text>
+<rect x="64" y="154" width="220" height="56" rx="16" fill="#1d4ed8"/><text x="174" y="189" text-anchor="middle" fill="#eff6ff" font-size="22" font-weight="700">Baseline CAGR 14.29%</text>
+<rect x="304" y="154" width="220" height="56" rx="16" fill="#0f766e"/><text x="414" y="189" text-anchor="middle" fill="#ecfdf5" font-size="22" font-weight="700">Stress CAGR 9.94%</text>
+<rect x="544" y="154" width="220" height="56" rx="16" fill="#7c3aed"/><text x="654" y="189" text-anchor="middle" fill="#f5f3ff" font-size="22" font-weight="700">Tests 48 / 48</text>
+<rect x="784" y="154" width="220" height="56" rx="16" fill="#b45309"/><text x="894" y="189" text-anchor="middle" fill="#fff7ed" font-size="22" font-weight="700">MaxDD -0.17%</text>
+<rect x="1024" y="154" width="220" height="56" rx="16" fill="#be123c"/><text x="1134" y="189" text-anchor="middle" fill="#fff1f2" font-size="22" font-weight="700">ONLY_UNWIND Guard</text>
+<text x="64" y="262" fill="#93c5fd" font-size="24" font-weight="700">1. Thesis</text>
+<text x="64" y="296" fill="#e2e8f0" font-size="18">• The vault rotates toward ALP when volatility rises, while LP + short hedge monetize calmer markets.</text>
+<text x="64" y="326" fill="#e2e8f0" font-size="18">• Objective: avoid pure-LP drawdown while staying more diversified than pure-ALP concentration.</text>
+<text x="64" y="386" fill="#93c5fd" font-size="24" font-weight="700">2. Product Moat</text>
+<text x="64" y="420" fill="#e2e8f0" font-size="18">• Hedge NAV accounting now includes margin + unrealized PnL - accrued fees.</text>
+<text x="64" y="450" fill="#e2e8f0" font-size="18">• TWAP-marked valuation, virtual-share anti-inflation, no-op bounty suppression, hysteresis regime switching.</text>
+<text x="64" y="480" fill="#e2e8f0" font-size="18">• Over-hedged states close only the amount needed to re-enter the delta band.</text>
+<text x="64" y="540" fill="#93c5fd" font-size="24" font-weight="700">3. Strategy Output (90d research model)</text>
+<rect x="64" y="566" width="610" height="240" rx="18" fill="#111827" stroke="#334155"/>
+<text x="88" y="606" fill="#f8fafc" font-size="20" font-weight="700">Scenario Comparison</text>
+<text x="88" y="640" fill="#94a3b8" font-size="16">Dynamic vs fixed NORMAL vs pure LP stress benchmark</text>
+<text x="88" y="688" fill="#93c5fd" font-size="17">Baseline Dynamic CAGR</text>
+<text x="324" y="688" fill="#f8fafc" font-size="17" font-weight="700">14.29%</text>
+<text x="88" y="720" fill="#93c5fd" font-size="17">Stress Dynamic CAGR</text>
+<text x="324" y="720" fill="#f8fafc" font-size="17" font-weight="700">9.94%</text>
+<text x="88" y="752" fill="#93c5fd" font-size="17">Baseline Fixed NORMAL CAGR</text>
+<text x="324" y="752" fill="#f8fafc" font-size="17" font-weight="700">13.08%</text>
+<text x="88" y="784" fill="#93c5fd" font-size="17">Stress Pure LP CAGR</text>
+<text x="324" y="784" fill="#f8fafc" font-size="17" font-weight="700">-11.04%</text>
+<rect x="714" y="566" width="610" height="240" rx="18" fill="#111827" stroke="#334155"/>
+<text x="738" y="606" fill="#f8fafc" font-size="20" font-weight="700">Why investors care</text>
+<text x="738" y="640" fill="#94a3b8" font-size="16">The dynamic strategy is a middle path between concentration and unhedged LP risk</text>
+<text x="738" y="688" fill="#e2e8f0" font-size="18">• Baseline dynamic beats pure LP by a wide margin and keeps drawdown shallow.</text>
+<text x="738" y="720" fill="#e2e8f0" font-size="18">• Stress dynamic stays positive in the model while pure LP remains deeply negative.</text>
+<text x="738" y="752" fill="#e2e8f0" font-size="18">• Fixed NORMAL remains a strong static benchmark; dynamic adds adaptive upside when volatility spikes.</text>
+<text x="738" y="784" fill="#e2e8f0" font-size="18">• Pure ALP is still a useful concentration benchmark, not the product target shape.</text>
+<text x="64" y="872" fill="#93c5fd" font-size="24" font-weight="700">4. Control Loop</text>
+<rect x="64" y="898" width="1260" height="82" rx="18" fill="#111827" stroke="#334155"/>
+<text x="90" y="946" fill="#e2e8f0" font-size="18">[TWAP + RMS Vol] → [Hysteresis Regime] → [Target Weights] → [ALP / LP / Hedge] → [Cost Gate + Bounty] → [NAV]</text>
+<text x="64" y="1006" fill="#94a3b8" font-size="15">Research model output refreshed from scripts/backtest.py on 2026-03-06. Production performance will depend on live Aster funding, liquidity, and execution conditions.</text>
+</svg>

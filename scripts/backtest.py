@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+from datetime import date, datetime, timezone
 import json
 import math
 import os
@@ -70,9 +71,20 @@ def load_prices(days, coin_id="bitcoin"):
     )
     try:
         data = fetch_json(url)
-        prices = [point[1] for point in data.get("prices", [])]
+        points = []
+        for point in data.get("prices", []):
+            if len(point) < 2:
+                continue
+            timestamp = datetime.fromtimestamp(point[0] / 1000, tz=timezone.utc)
+            points.append((timestamp, point[1]))
+        if len(points) >= 2:
+            last_timestamp, _ = points[-1]
+            previous_timestamp, _ = points[-2]
+            if last_timestamp.date() == previous_timestamp.date() or last_timestamp.time() != datetime.min.time():
+                points = points[:-1]
+        prices = [price for _, price in points]
         if len(prices) >= 2:
-            return prices, "coingecko"
+            return prices, "coingecko", points[-1][0].date().isoformat()
     except Exception:
         pass
 
@@ -82,7 +94,7 @@ def load_prices(days, coin_id="bitcoin"):
         seasonal = 0.012 * math.sin(index / 8.0)
         shock = random.uniform(-0.018, 0.018)
         prices.append(prices[-1] * (1.0 + seasonal + shock))
-    return prices, "synthetic"
+    return prices, "synthetic", "synthetic"
 
 
 def apr_to_daily(apr):
@@ -381,7 +393,7 @@ def render_scenario_svg(report, output_path):
     scenario_label = "Baseline" if scenario_name == "baseline" else "Stress"
     subtitle = (
         f"90d research model • Source={report['source']} • CALM {regimes.count('CALM')} / "
-        f"NORMAL {regimes.count('NORMAL')} / STORM {regimes.count('STORM')}"
+        f"NORMAL {regimes.count('NORMAL')} / STORM {regimes.count('STORM')} • As of {report['as_of_date']}"
     )
     dynamic_cagr = dynamic["summary"]["cagr"] * 100.0
     dynamic_max_dd = dynamic["summary"]["max_drawdown"] * 100.0
@@ -478,6 +490,71 @@ def render_scenario_svg(report, output_path):
         handle.write("\n".join(lines))
 
 
+def render_one_pager_svg(baseline_report, stress_report, output_path):
+    baseline = baseline_report["results"]
+    stress = stress_report["results"]
+    dynamic_base = baseline["dynamic"]
+    dynamic_stress = stress["dynamic"]
+    fixed_base = baseline["fixed_normal"]
+    lp_stress = stress["pure_lp"]
+    dynamic_base_cagr = format_pct(dynamic_base["summary"]["cagr"])
+    dynamic_stress_cagr = format_pct(dynamic_stress["summary"]["cagr"])
+    dynamic_stress_maxdd = format_pct(dynamic_stress["summary"]["max_drawdown"])
+    fixed_base_cagr = format_pct(fixed_base["summary"]["cagr"])
+    lp_stress_cagr = format_pct(lp_stress["summary"]["cagr"])
+    as_of_date = baseline_report.get("as_of_date") or stress_report.get("as_of_date") or date.today().isoformat()
+
+    width = 1400
+    height = 1040
+    lines = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">',
+        '<defs><linearGradient id="paperbg" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#020617"/><stop offset="100%" stop-color="#111827"/></linearGradient></defs>',
+        f'<rect width="{width}" height="{height}" rx="28" fill="url(#paperbg)"/>',
+        '<rect x="28" y="28" width="1344" height="984" rx="24" fill="#0f172a" stroke="#334155"/>',
+        '<text x="64" y="86" fill="#f8fafc" font-size="34" font-weight="700">Self-Driving Yield Engine • Investor One-Pager</text>',
+        f'<text x="64" y="122" fill="#94a3b8" font-size="18">Autonomous hedge-aware vault on BNB Chain • ALP + Pancake V2 LP + 1001x short hedge • No admin • As of {as_of_date}</text>',
+        f'<rect x="64" y="154" width="220" height="56" rx="16" fill="#1d4ed8"/><text x="174" y="189" text-anchor="middle" fill="#eff6ff" font-size="22" font-weight="700">Baseline CAGR {dynamic_base_cagr}</text>',
+        f'<rect x="304" y="154" width="220" height="56" rx="16" fill="#0f766e"/><text x="414" y="189" text-anchor="middle" fill="#ecfdf5" font-size="22" font-weight="700">Stress CAGR {dynamic_stress_cagr}</text>',
+        '<rect x="544" y="154" width="220" height="56" rx="16" fill="#7c3aed"/><text x="654" y="189" text-anchor="middle" fill="#f5f3ff" font-size="22" font-weight="700">Tests 48 / 48</text>',
+        f'<rect x="784" y="154" width="220" height="56" rx="16" fill="#b45309"/><text x="894" y="189" text-anchor="middle" fill="#fff7ed" font-size="22" font-weight="700">MaxDD {dynamic_stress_maxdd}</text>',
+        '<rect x="1024" y="154" width="220" height="56" rx="16" fill="#be123c"/><text x="1134" y="189" text-anchor="middle" fill="#fff1f2" font-size="22" font-weight="700">ONLY_UNWIND Guard</text>',
+        '<text x="64" y="262" fill="#93c5fd" font-size="24" font-weight="700">1. Thesis</text>',
+        '<text x="64" y="296" fill="#e2e8f0" font-size="18">• The vault rotates toward ALP when volatility rises, while LP + short hedge monetize calmer markets.</text>',
+        '<text x="64" y="326" fill="#e2e8f0" font-size="18">• Objective: avoid pure-LP drawdown while staying more diversified than pure-ALP concentration.</text>',
+        '<text x="64" y="386" fill="#93c5fd" font-size="24" font-weight="700">2. Product Moat</text>',
+        '<text x="64" y="420" fill="#e2e8f0" font-size="18">• Hedge NAV accounting now includes margin + unrealized PnL - accrued fees.</text>',
+        '<text x="64" y="450" fill="#e2e8f0" font-size="18">• TWAP-marked valuation, virtual-share anti-inflation, no-op bounty suppression, hysteresis regime switching.</text>',
+        '<text x="64" y="480" fill="#e2e8f0" font-size="18">• Over-hedged states close only the amount needed to re-enter the delta band.</text>',
+        '<text x="64" y="540" fill="#93c5fd" font-size="24" font-weight="700">3. Strategy Output (90d research model)</text>',
+        '<rect x="64" y="566" width="610" height="240" rx="18" fill="#111827" stroke="#334155"/>',
+        '<text x="88" y="606" fill="#f8fafc" font-size="20" font-weight="700">Scenario Comparison</text>',
+        '<text x="88" y="640" fill="#94a3b8" font-size="16">Dynamic vs fixed NORMAL vs pure LP stress benchmark</text>',
+        '<text x="88" y="688" fill="#93c5fd" font-size="17">Baseline Dynamic CAGR</text>',
+        f'<text x="324" y="688" fill="#f8fafc" font-size="17" font-weight="700">{dynamic_base_cagr}</text>',
+        '<text x="88" y="720" fill="#93c5fd" font-size="17">Stress Dynamic CAGR</text>',
+        f'<text x="324" y="720" fill="#f8fafc" font-size="17" font-weight="700">{dynamic_stress_cagr}</text>',
+        '<text x="88" y="752" fill="#93c5fd" font-size="17">Baseline Fixed NORMAL CAGR</text>',
+        f'<text x="324" y="752" fill="#f8fafc" font-size="17" font-weight="700">{fixed_base_cagr}</text>',
+        '<text x="88" y="784" fill="#93c5fd" font-size="17">Stress Pure LP CAGR</text>',
+        f'<text x="324" y="784" fill="#f8fafc" font-size="17" font-weight="700">{lp_stress_cagr}</text>',
+        '<rect x="714" y="566" width="610" height="240" rx="18" fill="#111827" stroke="#334155"/>',
+        '<text x="738" y="606" fill="#f8fafc" font-size="20" font-weight="700">Why investors care</text>',
+        '<text x="738" y="640" fill="#94a3b8" font-size="16">The dynamic strategy is a middle path between concentration and unhedged LP risk</text>',
+        '<text x="738" y="688" fill="#e2e8f0" font-size="18">• Baseline dynamic beats pure LP by a wide margin and keeps drawdown shallow.</text>',
+        '<text x="738" y="720" fill="#e2e8f0" font-size="18">• Stress dynamic stays positive in the model while pure LP remains deeply negative.</text>',
+        '<text x="738" y="752" fill="#e2e8f0" font-size="18">• Fixed NORMAL remains a strong static benchmark; dynamic adds adaptive upside when volatility spikes.</text>',
+        '<text x="738" y="784" fill="#e2e8f0" font-size="18">• Pure ALP is still a useful concentration benchmark, not the product target shape.</text>',
+        '<text x="64" y="872" fill="#93c5fd" font-size="24" font-weight="700">4. Control Loop</text>',
+        '<rect x="64" y="898" width="1260" height="82" rx="18" fill="#111827" stroke="#334155"/>',
+        '<text x="90" y="946" fill="#e2e8f0" font-size="18">[TWAP + RMS Vol] → [Hysteresis Regime] → [Target Weights] → [ALP / LP / Hedge] → [Cost Gate + Bounty] → [NAV]</text>',
+        f'<text x="64" y="1006" fill="#94a3b8" font-size="15">Research model output refreshed from scripts/backtest.py on {as_of_date}. Production performance will depend on live Aster funding, liquidity, and execution conditions.</text>',
+        '</svg>',
+    ]
+
+    with open(output_path, "w", encoding="utf-8") as handle:
+        handle.write("\n".join(lines))
+
+
 def format_pct(value):
     return f"{value * 100:.2f}%"
 
@@ -486,9 +563,10 @@ def format_ratio(value):
     return "n/a" if value is None else f"{value:.2f}"
 
 
-def print_scenario_report(scenario_name, results, regimes, source, days, tvl):
+def print_scenario_report(scenario_name, results, regimes, source, as_of_date, days, tvl):
     print(f"Scenario: {scenario_name}")
     print(f"Source: {source}")
+    print(f"As of: {as_of_date}")
     print(f"Days: {days}")
     print(f"TVL: ${tvl:,.0f}")
     print(
@@ -522,7 +600,7 @@ def print_scenario_report(scenario_name, results, regimes, source, days, tvl):
     print()
 
 
-def build_report(prices, source, strategies, scenario_name, args):
+def build_report(prices, source, as_of_date, strategies, scenario_name, args):
     log_return_series = log_returns(prices)
     regimes = build_market_regimes(log_return_series, args.window, HYSTERESIS)
     scenario = SCENARIOS[scenario_name]
@@ -541,6 +619,7 @@ def build_report(prices, source, strategies, scenario_name, args):
 
     return {
         "source": source,
+        "as_of_date": as_of_date,
         "days": args.days,
         "window": args.window,
         "scenario": scenario_name,
@@ -562,15 +641,16 @@ def main():
     parser.add_argument("--compare-scenarios", action="store_true")
     parser.add_argument("--json-out")
     parser.add_argument("--svg-dir")
+    parser.add_argument("--one-pager-svg")
     args = parser.parse_args()
 
-    prices, source = load_prices(args.days, args.coin_id)
+    prices, source, as_of_date = load_prices(args.days, args.coin_id)
     scenario_names = list(SCENARIOS.keys()) if args.compare_scenarios else [args.scenario]
     reports = []
     for scenario_name in scenario_names:
-        report = build_report(prices, source, STRATEGIES, scenario_name, args)
+        report = build_report(prices, source, as_of_date, STRATEGIES, scenario_name, args)
         reports.append(report)
-        print_scenario_report(scenario_name, report["results"], report["regimes"], source, args.days, args.tvl)
+        print_scenario_report(scenario_name, report["results"], report["regimes"], source, as_of_date, args.days, args.tvl)
 
     if args.json_out:
         with open(args.json_out, "w", encoding="utf-8") as handle:
@@ -581,6 +661,12 @@ def main():
         for report in reports:
             filename = f"backtest-{report['scenario']}.svg"
             render_scenario_svg(report, os.path.join(args.svg_dir, filename))
+
+    if args.one_pager_svg and len(reports) >= 2:
+        os.makedirs(os.path.dirname(args.one_pager_svg), exist_ok=True)
+        baseline_report = next((report for report in reports if report["scenario"] == "baseline"), reports[0])
+        stress_report = next((report for report in reports if report["scenario"] == "stress"), reports[-1])
+        render_one_pager_svg(baseline_report, stress_report, args.one_pager_svg)
 
 
 if __name__ == "__main__":
