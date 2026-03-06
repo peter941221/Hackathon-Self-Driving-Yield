@@ -223,6 +223,8 @@ flowchart TD
 
 - Economics: `ECONOMICS.md`
 
+- Research backtest: `scripts/backtest.py --compare-scenarios`
+
 - Hackathon analysis: `docs/ANALYSIS.md`
 
 - On-chain checks: `docs/ONCHAIN_CHECKS.md`
@@ -248,6 +250,7 @@ flowchart TD
 forge build
 forge test
 forge fmt
+python scripts/backtest.py --days 90 --tvl 100000 --cycles-per-day 4 --gas-gwei 50 --compare-scenarios
 ```
 
 Latest local validation: `48/48` tests passing.

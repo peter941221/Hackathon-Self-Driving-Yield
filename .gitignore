@@ -7,6 +7,8 @@
 *.log
 model-calls.jsonl
 MEMORY.md
+__pycache__/
+*.pyc
 
 # Demo video (too large for GitHub)
 /demo/
