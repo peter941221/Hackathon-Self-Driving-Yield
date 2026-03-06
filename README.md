@@ -37,6 +37,33 @@ ALP  │  ███    │ Stable   │  ██████ │ High yield!
 
 ---
 
+## Investor Snapshot
+
+**Research window**: 90 days, `$100k` simulated TVL, CoinGecko BTC path, baseline/stress scenario comparison.
+
+| Scenario | Dynamic CAGR | Dynamic CumRet | Fixed NORMAL CAGR | Pure LP CAGR | Dynamic MaxDD | Dynamic Trade Days |
+|---|---:|---:|---:|---:|---:|---:|
+| Baseline | 14.35% | 3.36% | 13.11% | -1.43% | -0.06% | 5 |
+| Stress | 10.02% | 2.38% | 8.68% | -11.07% | -0.17% | 5 |
+
+Notes:
+
+- `dynamic` is the product strategy.
+
+- `fixed NORMAL` is the static benchmark.
+
+- `pure LP` is the impermanent-loss stress benchmark.
+
+- `pure ALP` remains a useful concentration benchmark, but it is not the target product shape.
+
+### Backtest Charts
+
+![Baseline backtest strategy comparison](docs/assets/backtest-baseline.svg)
+
+![Stress backtest strategy comparison](docs/assets/backtest-stress.svg)
+
+---
+
 ## Key Ideas
 
 - Dual Engine: ALP is both a yield source and a volatility hedge.

@@ -2,6 +2,7 @@
 import argparse
 import json
 import math
+import os
 import random
 import statistics
 import urllib.request
@@ -339,6 +340,144 @@ def ascii_curve(curve, width=40):
     return "".join(output)
 
 
+def svg_escape(text):
+    return (
+        str(text)
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+    )
+
+
+def bar_x(value, zero_x, scale, right_bound, left_bound):
+    delta = value * scale
+    if value >= 0:
+        end_x = min(zero_x + delta, right_bound)
+        return zero_x, end_x - zero_x
+    start_x = max(zero_x + delta, left_bound)
+    return start_x, zero_x - start_x
+
+
+def render_scenario_svg(report, output_path):
+    scenario_name = report["scenario"]
+    results = report["results"]
+    regimes = report["regimes"]
+    dynamic = results["dynamic"]
+    width = 1200
+    height = 520
+    chart_left = 120
+    chart_right = 760
+    zero_x = 280
+    bar_height = 34
+    bar_gap = 26
+    top = 170
+    bottom = top + len(STRATEGIES) * (bar_height + bar_gap)
+    left_bound = 140
+    right_bound = chart_right - 30
+    max_abs_cagr = max(abs(results[name]["summary"]["cagr"] * 100.0) for name in STRATEGIES)
+    scale = (right_bound - zero_x - 20) / max(max_abs_cagr, 1.0)
+
+    scenario_label = "Baseline" if scenario_name == "baseline" else "Stress"
+    subtitle = (
+        f"90d research model • Source={report['source']} • CALM {regimes.count('CALM')} / "
+        f"NORMAL {regimes.count('NORMAL')} / STORM {regimes.count('STORM')}"
+    )
+    dynamic_cagr = dynamic["summary"]["cagr"] * 100.0
+    dynamic_max_dd = dynamic["summary"]["max_drawdown"] * 100.0
+    dynamic_trade_days = dynamic["trade_days"]
+    dynamic_turnover = dynamic["turnover"] * 100.0
+    dynamic_funding = dynamic["cost_breakdown"]["funding_usd"]
+    dynamic_rebalance = dynamic["cost_breakdown"]["rebalance_usd"]
+    dynamic_gas = dynamic["cost_breakdown"]["gas_usd"]
+
+    colors = {
+        "dynamic": "#2563eb",
+        "fixed_normal": "#0f766e",
+        "pure_alp": "#7c3aed",
+        "pure_lp": "#dc2626",
+    }
+
+    lines = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">',
+        "<defs>",
+        '<linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">',
+        '<stop offset="0%" stop-color="#0f172a"/>',
+        '<stop offset="100%" stop-color="#111827"/>',
+        "</linearGradient>",
+        "</defs>",
+        f'<rect width="{width}" height="{height}" rx="24" fill="url(#bg)"/>',
+        '<rect x="28" y="28" width="1144" height="464" rx="20" fill="#111827" stroke="#334155"/>',
+        f'<text x="56" y="76" fill="#f8fafc" font-size="28" font-weight="700">{svg_escape(scenario_label)} Scenario • Strategy CAGR Comparison</text>',
+        f'<text x="56" y="108" fill="#94a3b8" font-size="16">{svg_escape(subtitle)}</text>',
+        f'<text x="{zero_x - 16}" y="146" text-anchor="end" fill="#64748b" font-size="14">0%</text>',
+        f'<line x1="{zero_x}" y1="150" x2="{zero_x}" y2="{bottom + 12}" stroke="#475569" stroke-width="2"/>',
+    ]
+
+    grid_values = [-10, 0, 10, 20, 30]
+    for grid in grid_values:
+        grid_start, grid_width = bar_x(grid, zero_x, scale, right_bound, left_bound)
+        x = grid_start if grid < 0 else grid_start + grid_width
+        lines.append(
+            f'<line x1="{x}" y1="150" x2="{x}" y2="{bottom + 12}" stroke="#1f2937" stroke-width="1" stroke-dasharray="4 6"/>'
+        )
+        lines.append(
+            f'<text x="{x}" y="146" text-anchor="middle" fill="#64748b" font-size="12">{grid}%</text>'
+        )
+
+    for index, strategy in enumerate(STRATEGIES):
+        result = results[strategy]
+        cagr_pct = result["summary"]["cagr"] * 100.0
+        y = top + index * (bar_height + bar_gap)
+        x, width_bar = bar_x(cagr_pct, zero_x, scale, right_bound, left_bound)
+        label = strategy.replace("_", " ").title()
+        lines.append(
+            f'<text x="56" y="{y + 23}" fill="#e2e8f0" font-size="17" font-weight="600">{svg_escape(label)}</text>'
+        )
+        lines.append(
+            f'<rect x="{x}" y="{y}" width="{width_bar}" height="{bar_height}" rx="10" fill="{colors[strategy]}"/>'
+        )
+        value_x = x + width_bar + 10 if cagr_pct >= 0 else x - 10
+        anchor = "start" if cagr_pct >= 0 else "end"
+        lines.append(
+            f'<text x="{value_x}" y="{y + 23}" text-anchor="{anchor}" fill="#f8fafc" font-size="16" font-weight="700">{cagr_pct:.2f}%</text>'
+        )
+
+    card_x = 820
+    lines.extend(
+        [
+            f'<rect x="{card_x}" y="148" width="308" height="290" rx="18" fill="#0f172a" stroke="#334155"/>',
+            f'<text x="{card_x + 24}" y="184" fill="#f8fafc" font-size="22" font-weight="700">Dynamic Snapshot</text>',
+            f'<text x="{card_x + 24}" y="220" fill="#93c5fd" font-size="15">CAGR</text>',
+            f'<text x="{card_x + 220}" y="220" text-anchor="end" fill="#f8fafc" font-size="15" font-weight="700">{dynamic_cagr:.2f}%</text>',
+            f'<text x="{card_x + 24}" y="252" fill="#93c5fd" font-size="15">Max Drawdown</text>',
+            f'<text x="{card_x + 220}" y="252" text-anchor="end" fill="#f8fafc" font-size="15" font-weight="700">{dynamic_max_dd:.2f}%</text>',
+            f'<text x="{card_x + 24}" y="284" fill="#93c5fd" font-size="15">Trade Days</text>',
+            f'<text x="{card_x + 220}" y="284" text-anchor="end" fill="#f8fafc" font-size="15" font-weight="700">{dynamic_trade_days}</text>',
+            f'<text x="{card_x + 24}" y="316" fill="#93c5fd" font-size="15">Turnover</text>',
+            f'<text x="{card_x + 220}" y="316" text-anchor="end" fill="#f8fafc" font-size="15" font-weight="700">{dynamic_turnover:.2f}%</text>',
+            f'<text x="{card_x + 24}" y="348" fill="#93c5fd" font-size="15">Funding Cost</text>',
+            f'<text x="{card_x + 220}" y="348" text-anchor="end" fill="#f8fafc" font-size="15" font-weight="700">${dynamic_funding:.0f}</text>',
+            f'<text x="{card_x + 24}" y="380" fill="#93c5fd" font-size="15">Rebalance Cost</text>',
+            f'<text x="{card_x + 220}" y="380" text-anchor="end" fill="#f8fafc" font-size="15" font-weight="700">${dynamic_rebalance:.0f}</text>',
+            f'<text x="{card_x + 24}" y="412" fill="#93c5fd" font-size="15">Gas Cost</text>',
+            f'<text x="{card_x + 220}" y="412" text-anchor="end" fill="#f8fafc" font-size="15" font-weight="700">${dynamic_gas:.0f}</text>',
+        ]
+    )
+
+    footer = (
+        "Interpretation: dynamic is the diversified automation benchmark; "
+        "pure ALP is a concentration benchmark and pure LP is the IL stress benchmark."
+    )
+    lines.append(
+        f'<text x="56" y="468" fill="#94a3b8" font-size="15">{svg_escape(footer)}</text>'
+    )
+    lines.append("</svg>")
+
+    with open(output_path, "w", encoding="utf-8") as handle:
+        handle.write("\n".join(lines))
+
+
 def format_pct(value):
     return f"{value * 100:.2f}%"
 
@@ -422,6 +561,7 @@ def main():
     parser.add_argument("--scenario", choices=tuple(SCENARIOS.keys()), default="baseline")
     parser.add_argument("--compare-scenarios", action="store_true")
     parser.add_argument("--json-out")
+    parser.add_argument("--svg-dir")
     args = parser.parse_args()
 
     prices, source = load_prices(args.days, args.coin_id)
@@ -435,6 +575,12 @@ def main():
     if args.json_out:
         with open(args.json_out, "w", encoding="utf-8") as handle:
             json.dump(reports, handle, indent=2)
+
+    if args.svg_dir:
+        os.makedirs(args.svg_dir, exist_ok=True)
+        for report in reports:
+            filename = f"backtest-{report['scenario']}.svg"
+            render_scenario_svg(report, os.path.join(args.svg_dir, filename))
 
 
 if __name__ == "__main__":

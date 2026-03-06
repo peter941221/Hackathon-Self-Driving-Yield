@@ -183,9 +183,9 @@ Source: coingecko
 Market regime days: CALM 10 / NORMAL 65 / STORM 15
 
 Strategy       CAGR    AnnVol  Sharpe  MaxDD   CumRet
-dynamic        14.36%  1.15%   11.64   -0.06%  3.36%
-fixed_normal   13.11%  0.68%   18.05    0.00%  3.08%
-pure_alp       23.58%  1.48%   14.36    0.00%  5.36%
+dynamic        14.35%  1.15%   11.64   -0.06%  3.36%
+fixed_normal   13.11%  0.68%   18.04    0.00%  3.08%
+pure_alp       23.57%  1.48%   14.35    0.00%  5.36%
 pure_lp        -1.43%  0.68%   -2.11   -0.64% -0.35%
 ```
 
@@ -206,9 +206,9 @@ Source: coingecko
 Market regime days: CALM 10 / NORMAL 65 / STORM 15
 
 Strategy       CAGR    AnnVol  Sharpe  MaxDD   CumRet
-dynamic        10.02%  1.52%    6.31   -0.17%  2.38%
-fixed_normal    8.69%  0.92%    9.10   -0.02%  2.08%
-pure_alp       22.91%  1.89%   10.91   -0.00%  5.22%
+dynamic        10.02%  1.52%    6.30   -0.17%  2.38%
+fixed_normal    8.68%  0.92%    9.10   -0.02%  2.07%
+pure_alp       22.90%  1.89%   10.91   -0.00%  5.22%
 pure_lp       -11.07%  0.73%  -15.97   -2.85% -2.85%
 ```
 
