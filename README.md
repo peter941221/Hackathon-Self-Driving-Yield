@@ -30,11 +30,39 @@
   <em>Click the one-pager to open the markdown version.</em>
 </p>
 
+<p align="center">
+  <strong>📄 Quick Links</strong><br>
+  <a href="docs/INVESTOR_ONE_PAGER.md">Investor One-Pager</a> •
+  <a href="docs/RELEASE_NOTES.md">Release Notes</a> •
+  <a href="docs/GITHUB_ABOUT.md">GitHub About Copy</a>
+</p>
+
 ---
 
-## What is this?
+## About
 
-An **autonomous, non-custodial yield engine** for BNB Chain that uses **Aster ALP as both a yield source AND a natural hedge** against LP impermanent loss.
+Self-Driving Yield Engine is an **autonomous, non-custodial yield vault** on BNB Chain that reallocates across **Aster ALP**, **Pancake V2 LP**, and a **1001x short hedge**.
+
+Its core thesis is simple: **LP suffers when volatility spikes, while ALP can benefit from volatility-driven activity**. The vault uses this relationship to rotate risk instead of leaving LP capital static.
+
+```text
+[Volatility rises]
+        |
+        v
+[LP IL pressure] ----------> [Pure LP drawdown]
+        |
+        +----------> [ALP carry improves]
+                             |
+                             v
+                 [Dynamic allocator + hedge]
+                             |
+                             v
+                  [Shallower vault drawdown]
+```
+
+- **Why it matters**: it turns a static LP position into a regime-aware yield product.
+- **Why it is different**: no admin, no keeper dependency, bounded permissionless automation.
+- **Why it is investable**: hedge-aware NAV, TWAP-marked valuation, virtual-share anti-inflation, and `ONLY_UNWIND` safety mode.
 
 **Key insight**: ALP earns more when markets are volatile — naturally offsetting LP losses during market stress.
 
@@ -262,6 +290,10 @@ flowchart TD
 
 
 ## Docs
+
+- Release notes: `docs/RELEASE_NOTES.md`
+
+- GitHub About copy: `docs/GITHUB_ABOUT.md`
 
 - Architecture: `ARCHITECTURE.md`
 
