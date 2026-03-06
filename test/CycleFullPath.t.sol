@@ -198,6 +198,7 @@ contract CycleFullPathTest is Test {
         pair.setBalance(address(vault), 300e18);
 
         oracle.setSnapshotCount(1);
+        oracle.setVolatilityBps(200);
 
         vm.expectEmit(true, true, true, true, address(vault));
         emit EngineVault.RebalancePlanned(0, int256(70e18), 1000e18);
@@ -217,6 +218,7 @@ contract CycleFullPathTest is Test {
         pair.setBalance(address(vault), 400e18);
 
         oracle.setSnapshotCount(1);
+        oracle.setVolatilityBps(350);
 
         vm.expectEmit(true, true, true, true, address(vault));
         emit EngineVault.RebalancePlanned(int256(300e18), int256(-230e18), 1000e18);
@@ -251,17 +253,27 @@ contract CycleFullPathTest is Test {
         oracle.setSnapshotCount(1);
 
         vm.warp(100);
-        oracle.setRegime(VolatilityOracle.Regime.NORMAL);
+        oracle.setVolatilityBps(200);
         vault.cycle();
         assertEq(uint256(vault.currentRegime()), uint256(VolatilityOracle.Regime.NORMAL));
 
         vm.warp(102);
-        oracle.setRegime(VolatilityOracle.Regime.STORM);
+        oracle.setVolatilityBps(330);
         vault.cycle();
         assertEq(uint256(vault.currentRegime()), uint256(VolatilityOracle.Regime.STORM));
 
         vm.warp(104);
-        oracle.setRegime(VolatilityOracle.Regime.CALM);
+        oracle.setVolatilityBps(290);
+        vault.cycle();
+        assertEq(uint256(vault.currentRegime()), uint256(VolatilityOracle.Regime.STORM));
+
+        vm.warp(106);
+        oracle.setVolatilityBps(240);
+        vault.cycle();
+        assertEq(uint256(vault.currentRegime()), uint256(VolatilityOracle.Regime.NORMAL));
+
+        vm.warp(108);
+        oracle.setVolatilityBps(70);
         vault.cycle();
         assertEq(uint256(vault.currentRegime()), uint256(VolatilityOracle.Regime.CALM));
     }

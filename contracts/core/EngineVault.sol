@@ -13,6 +13,15 @@ import {ITradingReader} from "../interfaces/ITradingReader.sol";
 contract EngineVault {
     using MathLib for uint256;
 
+    uint256 internal constant BPS = 10000;
+    uint256 internal constant VIRTUAL_ASSETS = 1e24;
+    uint256 internal constant VIRTUAL_SHARES = 1e24;
+    uint256 internal constant PRICE_GUARD_BPS = 500;
+    uint256 internal constant CALM_ENTER_BPS = 80;
+    uint256 internal constant CALM_EXIT_BPS = 120;
+    uint256 internal constant STORM_ENTER_BPS = 320;
+    uint256 internal constant STORM_EXIT_BPS = 250;
+
     IERC20 public immutable asset;
     address public immutable asterDiamond;
     address public immutable pancakeFactory;
@@ -46,6 +55,7 @@ contract EngineVault {
     uint256 public lastCycleTimestamp;
     uint256 public lastTotalAssets;
     uint256 public lastKnownNav;
+    uint256 public lastRegimeSwitchTimestamp;
     uint8 public safeCycleCount;
     bool private inFlashRebalance;
     address public flashBorrowedToken;
@@ -184,9 +194,24 @@ contract EngineVault {
     }
 
     function deposit(uint256 assets, address receiver) external nonReentrant returns (uint256 shares) {
+        shares = _deposit(assets, receiver, 0);
+    }
+
+    function deposit(uint256 assets, address receiver, uint256 minShares)
+        external
+        nonReentrant
+        returns (uint256 shares)
+    {
+        shares = _deposit(assets, receiver, minShares);
+    }
+
+    function _deposit(uint256 assets, address receiver, uint256 minShares) internal returns (uint256 shares) {
         require(assets > 0, "ZERO_ASSETS");
+        require(receiver != address(0), "ZERO_RECEIVER");
+        _requireSharePricingHealthy();
         shares = previewDeposit(assets);
         require(shares > 0, "ZERO_SHARES");
+        require(shares >= minShares, "SLIPPAGE_SHARES");
 
         totalSupply += shares;
         balanceOf[receiver] += shares;
@@ -198,7 +223,23 @@ contract EngineVault {
     }
 
     function redeem(uint256 shares, address receiver, address owner) external nonReentrant returns (uint256 assets) {
+        assets = _redeem(shares, receiver, owner, 0);
+    }
+
+    function redeem(uint256 shares, address receiver, address owner, uint256 minAssets)
+        external
+        nonReentrant
+        returns (uint256 assets)
+    {
+        assets = _redeem(shares, receiver, owner, minAssets);
+    }
+
+    function _redeem(uint256 shares, address receiver, address owner, uint256 minAssets)
+        internal
+        returns (uint256 assets)
+    {
         require(shares > 0, "ZERO_SHARES");
+        require(receiver != address(0), "ZERO_RECEIVER");
         if (msg.sender != owner) {
             uint256 allowed = allowance[owner][msg.sender];
             if (allowed != type(uint256).max) {
@@ -208,6 +249,7 @@ contract EngineVault {
         }
 
         assets = previewRedeem(shares);
+        require(assets >= minAssets, "SLIPPAGE_ASSETS");
         balanceOf[owner] -= shares;
         totalSupply -= shares;
 
@@ -223,31 +265,37 @@ contract EngineVault {
 
     function totalAssets() public view returns (uint256) {
         (uint256 alpValue, uint256 lpValue, uint256 cashValue) = _getPortfolioValues();
-        return alpValue + lpValue + cashValue;
+        return alpValue + lpValue + cashValue + _getHedgeAccountValue();
     }
 
     function previewDeposit(uint256 assets) public view returns (uint256 shares) {
         uint256 supply = totalSupply;
         uint256 total = totalAssets();
-        return supply == 0 || total == 0 ? assets : (assets * supply) / total;
+        if (supply == 0) {
+            return assets;
+        }
+        return (assets * (supply + VIRTUAL_SHARES)) / (total + VIRTUAL_ASSETS);
     }
 
     function previewRedeem(uint256 shares) public view returns (uint256 assets) {
         uint256 supply = totalSupply;
         uint256 total = totalAssets();
-        return supply == 0 || total == 0 ? 0 : (shares * total) / supply;
+        if (supply == 0) {
+            return 0;
+        }
+        return (shares * (total + VIRTUAL_ASSETS)) / (supply + VIRTUAL_SHARES);
     }
 
     // slither-disable-next-line reentrancy-no-eth,reentrancy-benign
     function cycle() external nonReentrant {
         require(block.timestamp >= lastCycleTimestamp + minCycleInterval, "CYCLE_INTERVAL");
 
-        _updateRegime();
-        _circuitBreakerCheck();
-        _rebalanceAssets();
-        _rebalanceHedge();
+        bool didWork = _updateRegime();
+        didWork = _circuitBreakerCheck() || didWork;
+        didWork = _rebalanceAssets() || didWork;
+        didWork = _rebalanceHedge() || didWork;
 
-        uint256 bounty = _calculateBounty();
+        uint256 bounty = _calculateBounty(didWork);
         if (bounty > 0) {
             require(asset.transfer(msg.sender, bounty), "BOUNTY_TRANSFER");
         }
@@ -341,26 +389,30 @@ contract EngineVault {
     }
 
     // slither-disable-next-line reentrancy-benign
-    function _updateRegime() internal {
+    function _updateRegime() internal returns (bool didWork) {
         if (address(volatilityOracle) == address(0) || volatilityOracle.pair() == address(0)) {
-            return;
+            return false;
         }
 
         volatilityOracle.recordSnapshot();
         VolatilityOracle.Regime newRegime = currentRegime;
+        uint256 volatilityBps = 0;
         if (volatilityOracle.snapshotCount() < volatilityOracle.minSamples()) {
             newRegime = VolatilityOracle.Regime.NORMAL;
         } else {
-            newRegime = volatilityOracle.getRegime();
+            volatilityBps = volatilityOracle.getVolatilityBps();
+            newRegime = _regimeFromVolatility(volatilityBps);
         }
 
         if (newRegime != currentRegime) {
-            emit RegimeSwitched(currentRegime, newRegime, volatilityOracle.getVolatilityBps());
+            emit RegimeSwitched(currentRegime, newRegime, volatilityBps);
             currentRegime = newRegime;
+            lastRegimeSwitchTimestamp = block.timestamp;
+            didWork = true;
         }
     }
 
-    function _circuitBreakerCheck() internal {
+    function _circuitBreakerCheck() internal returns (bool didWork) {
         bool triggered = false;
         bool signalsReady = true;
 
@@ -401,12 +453,13 @@ contract EngineVault {
             riskMode = RiskMode.ONLY_UNWIND;
             safeCycleCount = 0;
             emit RiskModeChanged(old, riskMode);
+            didWork = true;
         }
 
         if (!triggered && riskMode == RiskMode.ONLY_UNWIND) {
             if (!signalsReady) {
                 safeCycleCount = 0;
-                return;
+                return didWork;
             }
             safeCycleCount++;
             if (safeCycleCount >= safeCycleThreshold) {
@@ -414,15 +467,16 @@ contract EngineVault {
                 riskMode = RiskMode.NORMAL;
                 safeCycleCount = 0;
                 emit RiskModeChanged(oldMode, riskMode);
+                didWork = true;
             }
         }
     }
 
-    function _rebalanceAssets() internal {
+    function _rebalanceAssets() internal returns (bool didWork) {
         (uint256 alpValue, uint256 lpValue, uint256 cashValue) = _getPortfolioValues();
-        uint256 totalValue = alpValue + lpValue + cashValue;
+        uint256 totalValue = alpValue + lpValue + cashValue + _getHedgeAccountValue();
         if (totalValue == 0) {
-            return;
+            return false;
         }
 
         (uint16 targetAlpBps, uint16 targetLpBps) = _computeTargetAllocation();
@@ -437,23 +491,23 @@ contract EngineVault {
         uint256 deviation = alpDeviation > lpDeviation ? alpDeviation : lpDeviation;
         uint256 deviationBps = deviation * 10000 / totalValue;
         if (deviationBps < rebalanceThresholdBps) {
-            return;
+            return false;
         }
 
         emit RebalancePlanned(alpDelta, lpDelta, totalValue);
 
         if (!enableExternalCalls) {
-            return;
+            return false;
         }
 
         if (riskMode == RiskMode.ONLY_UNWIND) {
             if (alpDelta < 0) {
-                _reduceAlp(uint256(-alpDelta));
+                didWork = _reduceAlp(uint256(-alpDelta)) || didWork;
             }
             if (lpDelta < 0) {
-                _reduceLp(uint256(-lpDelta));
+                didWork = _reduceLp(uint256(-lpDelta)) || didWork;
             }
-            return;
+            return didWork;
         }
 
         if (
@@ -463,26 +517,26 @@ contract EngineVault {
             uint256 borrowAmount = _calcFlashBorrowAmount(lpDelta, totalValue);
             if (borrowAmount > 0) {
                 _executeFlashRebalance(borrowAmount);
-                return;
+                return true;
             }
         }
 
         if (alpDelta > 0) {
-            _increaseAlp(uint256(alpDelta));
+            didWork = _increaseAlp(uint256(alpDelta)) || didWork;
         } else if (alpDelta < 0) {
-            _reduceAlp(uint256(-alpDelta));
+            didWork = _reduceAlp(uint256(-alpDelta)) || didWork;
         }
 
         if (lpDelta > 0) {
-            _increaseLp(uint256(lpDelta));
+            didWork = _increaseLp(uint256(lpDelta)) || didWork;
         } else if (lpDelta < 0) {
-            _reduceLp(uint256(-lpDelta));
+            didWork = _reduceLp(uint256(-lpDelta)) || didWork;
         }
     }
 
-    function _rebalanceHedge() internal {
+    function _rebalanceHedge() internal returns (bool didWork) {
         if (!enableExternalCalls || asterDiamond == address(0) || v2Pair == address(0) || pairBase == address(0)) {
-            return;
+            return false;
         }
 
         (uint256 amtBase, uint256 amtQuote) =
@@ -492,13 +546,13 @@ contract EngineVault {
         (uint256 hedgeQty1e10, uint256 hedgeNotional, uint256 avgEntryPrice) =
             Aster1001xAdapter.getShortExposure(asterDiamond, address(this), pairBase);
         if (amtBase == 0 && amtQuote == 0) {
-            return;
+            return false;
         }
         if (hedgeNotional == 0 && avgEntryPrice == 0) {
             hedgeNotional = 0;
         }
         if (lpBaseQty1e10 == 0) {
-            return;
+            return false;
         }
 
         // slither-disable-next-line divide-before-multiply
@@ -512,64 +566,71 @@ contract EngineVault {
             if (margin > cashBalance) margin = cashBalance;
             if (margin > 0 && price1e8 > 0) {
                 Aster1001xAdapter.openShort(asterDiamond, pairBase, address(asset), margin, deltaQty, price1e8);
+                didWork = true;
             }
         } else if (hedgeQty1e10 > lpBaseQty1e10 + band) {
+            uint256 targetMaxHedgeQty = lpBaseQty1e10 + band;
+            uint256 qtyToClose = hedgeQty1e10 - targetMaxHedgeQty;
             ITradingReader.Position[] memory positions =
                 Aster1001xAdapter.getPositions(asterDiamond, address(this), pairBase);
             for (uint256 i = 0; i < positions.length; i++) {
+                if (positions[i].isLong) {
+                    continue;
+                }
                 Aster1001xAdapter.closeTrade(asterDiamond, positions[i].positionHash);
+                didWork = true;
+                if (positions[i].qty >= qtyToClose) {
+                    break;
+                }
+                qtyToClose -= positions[i].qty;
             }
         }
     }
 
-    function _increaseAlp(uint256 value) internal {
+    function _increaseAlp(uint256 value) internal returns (bool didWork) {
         if (asterDiamond == address(0)) {
-            return;
+            return false;
         }
         uint256 cashBalance = asset.balanceOf(address(this));
         uint256 amount = value > cashBalance ? cashBalance : value;
         if (amount == 0) {
-            return;
+            return false;
         }
         uint256 alpReceived = AsterAlpAdapter.mintAlp(asterDiamond, address(asset), amount, 0, false);
-        if (alpReceived == 0) {
-            return;
-        }
+        return alpReceived > 0;
     }
 
-    function _reduceAlp(uint256 value) internal {
+    function _reduceAlp(uint256 value) internal returns (bool didWork) {
         if (asterDiamond == address(0)) {
-            return;
+            return false;
         }
         if (!AsterAlpAdapter.canBurn(asterDiamond)) {
-            return;
+            return false;
         }
         uint256 nav = AsterAlpAdapter.getAlpNAV(asterDiamond);
         if (nav == 0) {
-            return;
+            return false;
         }
         uint256 alpToBurn = (value * AsterAlpAdapter.alpPriceScale()) / nav;
         if (alpToBurn == 0) {
-            return;
+            return false;
         }
         uint256 tokenReceived = AsterAlpAdapter.burnAlp(asterDiamond, address(asset), alpToBurn, 0);
-        if (tokenReceived == 0) {
-            return;
-        }
+        return tokenReceived > 0;
     }
 
-    function _increaseLp(uint256 value) internal {
+    function _increaseLp(uint256 value) internal returns (bool didWork) {
         if (v2Pair == address(0) || pairBase == address(0) || pairQuote == address(0)) {
-            return;
+            return false;
         }
-        uint256 basePrice = _getBasePrice1e18();
+        uint256 basePrice = _getMarkPrice1e18();
         if (basePrice == 0) {
-            return;
+            return false;
         }
         uint256 quoteBalance = asset.balanceOf(address(this));
         uint256 baseBalance = IERC20(pairBase).balanceOf(address(this));
         if (quoteBalance == 0 && baseBalance == 0) {
-            return;
+            return false;
         }
 
         uint256 quoteTarget = value / 2;
@@ -603,7 +664,7 @@ contract EngineVault {
         uint256 quoteToUse = quoteBalance > quoteTarget ? quoteTarget : quoteBalance;
         uint256 baseToUse = baseBalance > baseTarget ? baseTarget : baseBalance;
         if (quoteToUse == 0 || baseToUse == 0) {
-            return;
+            return false;
         }
 
         (uint256 reserveBase, uint256 reserveQuote) = PancakeLibrary.getReserves(pancakeFactory, pairBase, pairQuote);
@@ -618,55 +679,49 @@ contract EngineVault {
         }
 
         if (quoteToUse == 0 || baseToUse == 0) {
-            return;
+            return false;
         }
 
         uint256 liquidity = PancakeV2Adapter.addLiquidity(pairBase, pairQuote, baseToUse, quoteToUse, swapSlippageBps);
-        if (liquidity == 0) {
-            return;
-        }
+        return liquidity > 0;
     }
 
-    function _reduceLp(uint256 value) internal {
+    function _reduceLp(uint256 value) internal returns (bool didWork) {
         if (v2Pair == address(0) || pairBase == address(0) || pairQuote == address(0)) {
-            return;
+            return false;
         }
         uint256 lpBal = IERC20(v2Pair).balanceOf(address(this));
         if (lpBal == 0) {
-            return;
+            return false;
         }
         (uint256 alpValue, uint256 lpValue, uint256 cashValue) = _getPortfolioValues();
-        uint256 totalValue = alpValue + lpValue + cashValue;
+        uint256 totalValue = alpValue + lpValue + cashValue + _getHedgeAccountValue();
         if (lpValue == 0 || totalValue == 0) {
-            return;
+            return false;
         }
         uint256 liquidityToRemove = (lpBal * value) / lpValue;
         if (liquidityToRemove > lpBal) {
             liquidityToRemove = lpBal;
         }
         if (liquidityToRemove == 0) {
-            return;
+            return false;
         }
         (uint256 amountA, uint256 amountB) =
             PancakeV2Adapter.removeLiquidity(pairBase, pairQuote, liquidityToRemove, swapSlippageBps);
-        if (amountA == 0 && amountB == 0) {
-            return;
-        }
+        return amountA > 0 || amountB > 0;
     }
 
-    function _removeAllLp() internal {
+    function _removeAllLp() internal returns (bool didWork) {
         if (v2Pair == address(0) || pairBase == address(0) || pairQuote == address(0)) {
-            return;
+            return false;
         }
         uint256 lpBal = IERC20(v2Pair).balanceOf(address(this));
         if (lpBal == 0) {
-            return;
+            return false;
         }
         (uint256 amountA, uint256 amountB) =
             PancakeV2Adapter.removeLiquidity(pairBase, pairQuote, lpBal, swapSlippageBps);
-        if (amountA == 0 && amountB == 0) {
-            return;
-        }
+        return amountA > 0 || amountB > 0;
     }
 
     function _swapQuoteToBase(uint256 amountIn) internal returns (uint256 amountOut) {
@@ -748,12 +803,15 @@ contract EngineVault {
         }
     }
 
-    function _calculateBounty() internal view returns (uint256) {
+    function _calculateBounty(bool didWork) internal view returns (uint256) {
         uint256 currentAssets = totalAssets();
         uint256 profitSinceLastCycle = currentAssets > lastTotalAssets ? currentAssets - lastTotalAssets : 0;
         uint256 profitBounty = (profitSinceLastCycle * profitBountyBps) / 10000;
+        if (!didWork && profitSinceLastCycle == 0) {
+            return 0;
+        }
 
-        uint256 gasPriceUsed = tx.gasprice > maxGasPrice ? maxGasPrice : tx.gasprice;
+        uint256 gasPriceUsed = maxGasPrice == 0 ? tx.gasprice : (tx.gasprice > maxGasPrice ? maxGasPrice : tx.gasprice);
         uint256 minBounty = 0;
         uint256 bnbPrice = _getBnbPrice1e18();
         if (bnbPrice > 0) {
@@ -763,7 +821,10 @@ contract EngineVault {
             minBounty = (minBounty * 150) / 100;
         }
 
-        uint256 bounty = profitBounty > minBounty ? profitBounty : minBounty;
+        uint256 bounty = profitBounty;
+        if (didWork || profitSinceLastCycle > 0) {
+            bounty = profitBounty > minBounty ? profitBounty : minBounty;
+        }
         uint256 maxBounty = (currentAssets * maxBountyBps) / 10000;
         uint256 bufferCap = (currentAssets * bufferCapBps) / 10000;
 
@@ -780,7 +841,7 @@ contract EngineVault {
             alpValue = AsterAlpAdapter.getAlpValueInUsd(asterDiamond, address(this));
         }
 
-        uint256 basePrice = _getBasePrice1e18();
+        uint256 basePrice = _getMarkPrice1e18();
         if (v2Pair != address(0) && pairBase != address(0)) {
             (uint256 amtBase, uint256 amtQuote) =
                 PancakeV2Adapter.getUnderlyingAmountsForTokens(v2Pair, address(this), pairBase);
@@ -799,6 +860,45 @@ contract EngineVault {
         }
         uint256 baseValueCash = basePrice == 0 ? 0 : (baseBalance * basePrice) / 1e18;
         cashValue = quoteBalance + baseValueCash;
+    }
+
+    function _getHedgeAccountValue() internal view returns (uint256 hedgeValue) {
+        if (asterDiamond == address(0) || pairBase == address(0)) {
+            return 0;
+        }
+
+        uint256 markPrice1e8 = _getMarkPrice1e8();
+        (bool ok, bytes memory data) =
+            asterDiamond.staticcall(abi.encodeWithSignature("getPositionsV2(address,address)", address(this), pairBase));
+        if (!ok || data.length == 0) {
+            return 0;
+        }
+
+        ITradingReader.Position[] memory positions = abi.decode(data, (ITradingReader.Position[]));
+        for (uint256 i = 0; i < positions.length; i++) {
+            if (positions[i].isLong) {
+                continue;
+            }
+
+            int256 positionValue = int256(uint256(positions[i].margin));
+            uint256 referencePrice1e8 = markPrice1e8 > 0 ? markPrice1e8 : uint256(positions[i].entryPrice);
+            if (referencePrice1e8 > 0 && positions[i].entryPrice > 0 && positions[i].qty > 0) {
+                int256 pnl = int256(uint256(positions[i].qty) * uint256(positions[i].entryPrice))
+                    - int256(uint256(positions[i].qty) * referencePrice1e8);
+                positionValue += pnl;
+            }
+
+            if (positions[i].fundingFee >= 0) {
+                positionValue -= positions[i].fundingFee;
+            } else {
+                positionValue += -positions[i].fundingFee;
+            }
+            positionValue -= int256(uint256(positions[i].holdingFee));
+
+            if (positionValue > 0) {
+                hedgeValue += uint256(positionValue);
+            }
+        }
     }
 
     function _computeTargetAllocation() internal view returns (uint16 alpBps, uint16 lpBps) {
@@ -830,6 +930,19 @@ contract EngineVault {
         return price1e18 / 1e10;
     }
 
+    function _getMarkPrice1e18() internal view returns (uint256) {
+        uint256 oraclePrice = _getOraclePrice1e18();
+        if (oraclePrice > 0) {
+            return oraclePrice;
+        }
+        return _getBasePrice1e18();
+    }
+
+    function _getMarkPrice1e8() internal view returns (uint256) {
+        uint256 price1e18 = _getMarkPrice1e18();
+        return price1e18 / 1e10;
+    }
+
     function _getBnbPrice1e18() internal view returns (uint256) {
         if (bnbUsdtPair == address(0)) {
             return 0;
@@ -850,6 +963,37 @@ contract EngineVault {
             return 0;
         }
         return volatilityOracle.getTwapPrice1e18();
+    }
+
+    function _requireSharePricingHealthy() internal view {
+        require(riskMode != RiskMode.ONLY_UNWIND, "DEPOSIT_PAUSED");
+
+        uint256 oraclePrice = _getOraclePrice1e18();
+        uint256 spotPrice = _getBasePrice1e18();
+        if (oraclePrice == 0 || spotPrice == 0) {
+            return;
+        }
+
+        uint256 deviationBps = MathLib.absDiff(oraclePrice, spotPrice) * BPS / oraclePrice;
+        require(deviationBps <= PRICE_GUARD_BPS, "PRICE_GUARD");
+    }
+
+    function _regimeFromVolatility(uint256 volatilityBps) internal view returns (VolatilityOracle.Regime) {
+        if (currentRegime == VolatilityOracle.Regime.CALM) {
+            return volatilityBps >= CALM_EXIT_BPS ? VolatilityOracle.Regime.NORMAL : VolatilityOracle.Regime.CALM;
+        }
+
+        if (currentRegime == VolatilityOracle.Regime.STORM) {
+            return volatilityBps <= STORM_EXIT_BPS ? VolatilityOracle.Regime.NORMAL : VolatilityOracle.Regime.STORM;
+        }
+
+        if (volatilityBps <= CALM_ENTER_BPS) {
+            return VolatilityOracle.Regime.CALM;
+        }
+        if (volatilityBps >= STORM_ENTER_BPS) {
+            return VolatilityOracle.Regime.STORM;
+        }
+        return VolatilityOracle.Regime.NORMAL;
     }
 
     function _transfer(address from, address to, uint256 amount) internal {

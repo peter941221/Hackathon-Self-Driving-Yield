@@ -8,7 +8,7 @@
   <a href="https://www.youtube.com/watch?v=rdQyEShM0vs">
     <img src="https://img.shields.io/badge/Demo-Video-red?style=for-the-badge&logo=youtube" alt="Demo Video">
   </a>
-  <img src="https://img.shields.io/badge/Tests-44%2F44%20Passing-brightgreen?style=for-the-badge" alt="Tests">
+  <img src="https://img.shields.io/badge/Tests-48%2F48%20Passing-brightgreen?style=for-the-badge" alt="Tests">
   <img src="https://img.shields.io/badge/Platform-BNB%20Chain-yellow?style=for-the-badge" alt="Platform">
   <img src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge" alt="License">
 </p>
@@ -47,6 +47,8 @@ ALP  │  ███    │ Stable   │  ██████ │ High yield!
 
 - Atomic Rebalance: Flash Swap rebalances reduce MEV surface.
 
+- Investor-Grade Hardening: hedge NAV accounting, TWAP-marked valuation, virtual-share anti-inflation, and no-op bounty suppression.
+
 - No Admin: all parameters are immutable, no multisig or keeper dependency.
 
 
@@ -56,13 +58,13 @@ ALP  │  ███    │ Stable   │  ██████ │ High yield!
 
 - What: a self-driving engine allocating across ALP, Pancake V2 LP, and 1001x delta hedging.
 
-- How: TWAP-based regime switching, bounded cycle bounty, and atomic flash rebalances.
+- How: TWAP-marked valuation, hysteresis-based regime switching, bounded cycle bounty, and atomic flash rebalances.
 
 - Assumptions: protocol ABIs remain stable, on-chain liquidity is sufficient, BSC finality is normal.
 
-- Sustainability: rebalance only when deviation beats costs; gas/bounty caps prevent overtrading.
+- Sustainability: rebalance only when deviation beats costs; no-op cycles do not earn gas-only bounty.
 
-- Resilience: ONLY_UNWIND risk mode, partial withdrawals, slippage/deadline guards.
+- Resilience: ONLY_UNWIND risk mode, partial withdrawals, virtual-share anti-inflation, and deposit price guards.
 
 Assumptions and mitigations are expanded in `THREAT_MODEL.md` and `ECONOMICS.md`.
 
@@ -94,6 +96,49 @@ Assumptions and mitigations are expanded in `THREAT_MODEL.md` and `ECONOMICS.md`
 
 - 1001x position size sums short `qty` from `getPositionsV2(address,address)` and exposes avg entry price.
 
+- Vault NAV now includes hedge account value (`margin + unrealized PnL - accrued fees`) so share pricing, bounty math, and targets are aligned with real capital.
+
+- LP/base valuation prefers oracle TWAP (`mark price`) over raw spot when available.
+
+- Deposit share minting uses virtual assets/shares plus a TWAP-vs-spot guard to reduce ERC-4626-style inflation and mark-to-market manipulation.
+
+- Regime switching now uses hysteresis bands to reduce boundary churn.
+
+- Over-hedged states close only the amount needed to re-enter the delta band instead of force-closing every short.
+
+- Gas reimbursement only activates when the cycle produced profit or executed meaningful control work.
+
+
+## Investor-Grade Hardening
+
+```
+                    +-----------------------------+
+                    |  Investor Concern           |
+                    +--------------+--------------+
+                                   |
+          +------------------------+-------------------------+
+          |                        |                         |
+          v                        v                         v
+  +-------+--------+      +--------+--------+      +---------+--------+
+  | NAV accuracy   |      | Share fairness  |      | Keeper alignment |
+  +-------+--------+      +--------+--------+      +---------+--------+
+          |                        |                         |
+          v                        v                         v
+  Hedge margin/PnL/fees    Virtual shares +         No-op cycles do not
+  included in NAV          price-deviation guard    earn gas-only bounty
+          |
+          v
+  Better accounting for target weights, bounty, and redemptions
+```
+
+- **Accurate NAV**: `totalAssets()` includes hedge account value, not just ALP, LP, and idle cash.
+
+- **Safer Share Pricing**: deposits use virtual assets/shares and revert when TWAP vs spot deviation exceeds the pricing guard.
+
+- **More Stable Control Loop**: regime changes use hysteresis and hedge reduction closes only what is needed.
+
+- **Cleaner Incentives**: keepers no longer farm gas-only bounty from empty no-op cycles.
+
 
 ## Architecture (High-Level)
 
@@ -114,10 +159,10 @@ User (USDT)
 flowchart TD
   A[cycle called by anyone] --> B[Phase 0 pre-checks<br/>slippage deadline gas bounty caps]
   B --> C[Phase 1 read state<br/>ALP LP hedge cash]
-  C --> D[Phase 2 TWAP snapshot]
+  C --> D[Phase 2 TWAP snapshot + mark price]
   D --> E{min samples ready}
   E -->|No| F[Force NORMAL<br/>skip flash rebalance]
-  E -->|Yes| G[Compute regime<br/>CALM NORMAL STORM]
+  E -->|Yes| G[Compute regime with hysteresis<br/>CALM NORMAL STORM]
   F --> H[Phase 3 target allocation]
   G --> H
   H --> I{RiskMode ONLY_UNWIND}
@@ -129,10 +174,10 @@ flowchart TD
   M --> O[Phase 5 hedge adjustment]
   N --> O
   J --> O
-  O --> P{Health + deviation safe}
+  O --> P{Health + deviation safe<br/>and pricing guard intact}
   P -->|No| Q[Set ONLY_UNWIND and emit risk event]
   P -->|Yes| R[Stay NORMAL]
-  Q --> S[Phase 6 bounded bounty payout]
+  Q --> S[Phase 6 bounded bounty payout<br/>no gas-only bounty for no-op]
   R --> S
   S --> T[Emit CycleCompleted and accounting events]
 
@@ -204,6 +249,8 @@ forge build
 forge test
 forge fmt
 ```
+
+Latest local validation: `48/48` tests passing.
 
 Invariant tests:
 

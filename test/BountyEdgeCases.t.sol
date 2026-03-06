@@ -90,7 +90,7 @@ contract BountyEdgeCasesTest is Test {
         assertEq(asset.balanceOf(caller), minBounty);
     }
 
-    function testBountyProfitZeroUsesGasOnly() public {
+    function testBountyProfitZeroDoesNotPayGasOnlyForNoOp() public {
         (EngineVault vault, MockERC20 asset, MockPricePair pair) = _deployVault(1000, 10000, 10000, 5 gwei);
 
         pair.setReserves(300e18, 1e18);
@@ -105,11 +105,7 @@ contract BountyEdgeCasesTest is Test {
         vm.prank(caller);
         vault.cycle();
 
-        uint256 bnbPrice = 300e18;
-        uint256 minBounty = (5 gwei * 500_000 * bnbPrice) / 1e18;
-        minBounty = (minBounty * 150) / 100;
-
-        assertEq(asset.balanceOf(caller) - beforeBalance, minBounty);
+        assertEq(asset.balanceOf(caller) - beforeBalance, 0);
     }
 
     function testBountyCappedByBuffer() public {
