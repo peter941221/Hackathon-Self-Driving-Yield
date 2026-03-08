@@ -35,6 +35,7 @@
   <a href="docs/INVESTOR_ONE_PAGER.md">Investor One-Pager</a> •
   <a href="docs/ASSURANCE.md">Assurance Packet</a> •
   <a href="docs/FORMAL_VERIFICATION.md">Formal Verification</a> •
+  <a href="docs/PANCAKECALL_AUDIT.md">Callback Audit</a> •
   <a href="docs/RELEASE_NOTES.md">Release Notes</a> •
   <a href="docs/GITHUB_ABOUT.md">GitHub About Copy</a>
 </p>
@@ -334,7 +335,7 @@ python scripts/backtest.py --days 90 --tvl 100000 --cycles-per-day 4 --gas-gwei 
 
 Latest local validation: `54/54` tests passing.
 
-Formal verification: `8/8` symbolic properties passing via `python scripts/run_formal.py`.
+Formal verification: `9/9` symbolic properties passing via `python scripts/run_formal.py`.
 
 Invariant tests:
 

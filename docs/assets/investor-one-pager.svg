@@ -8,14 +8,14 @@
 <rect x="304" y="154" width="220" height="56" rx="16" fill="#0f766e"/><text x="414" y="189" text-anchor="middle" fill="#ecfdf5" font-size="22" font-weight="700">Stress CAGR 10.93%</text>
 <rect x="544" y="154" width="220" height="56" rx="16" fill="#7c3aed"/><text x="654" y="189" text-anchor="middle" fill="#f5f3ff" font-size="22" font-weight="700">Tests 54 / 54</text>
 <rect x="784" y="154" width="220" height="56" rx="16" fill="#b45309"/><text x="894" y="189" text-anchor="middle" fill="#fff7ed" font-size="22" font-weight="700">MaxDD -0.17%</text>
-<rect x="1024" y="154" width="220" height="56" rx="16" fill="#be123c"/><text x="1134" y="189" text-anchor="middle" fill="#fff1f2" font-size="22" font-weight="700">Formal 8 / 8</text>
+<rect x="1024" y="154" width="220" height="56" rx="16" fill="#be123c"/><text x="1134" y="189" text-anchor="middle" fill="#fff1f2" font-size="22" font-weight="700">Formal 9 / 9</text>
 <text x="64" y="262" fill="#93c5fd" font-size="24" font-weight="700">1. Thesis</text>
 <text x="64" y="296" fill="#e2e8f0" font-size="18">• The vault rotates toward ALP when volatility rises, while LP + short hedge monetize calmer markets.</text>
 <text x="64" y="326" fill="#e2e8f0" font-size="18">• Objective: avoid pure-LP drawdown while staying more diversified than pure-ALP concentration.</text>
 <text x="64" y="386" fill="#93c5fd" font-size="24" font-weight="700">2. Product Moat</text>
 <text x="64" y="420" fill="#e2e8f0" font-size="18">• Hedge NAV accounting now includes margin + unrealized PnL - accrued fees.</text>
 <text x="64" y="450" fill="#e2e8f0" font-size="18">• TWAP-marked valuation, virtual-share anti-inflation, no-op bounty suppression, hysteresis regime switching.</text>
-<text x="64" y="480" fill="#e2e8f0" font-size="18">• 5/5 invariants, 8/8 symbolic formal properties, and one remaining callback event-order warning in Slither.</text>
+<text x="64" y="480" fill="#e2e8f0" font-size="18">• 5/5 invariants, 9/9 symbolic formal properties, and one remaining callback event-order warning in Slither.</text>
 <text x="64" y="540" fill="#93c5fd" font-size="24" font-weight="700">3. Strategy Output (90d research model)</text>
 <rect x="64" y="566" width="610" height="240" rx="18" fill="#111827" stroke="#334155"/>
 <text x="88" y="606" fill="#f8fafc" font-size="20" font-weight="700">Scenario Comparison</text>

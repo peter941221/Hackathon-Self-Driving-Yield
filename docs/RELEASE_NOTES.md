@@ -16,7 +16,7 @@ Self-Driving Yield Engine now ships with a stronger investor-proof story: a dedi
 ## Highlights
 
 - Added an investor-facing `docs/ASSURANCE.md` that links research, tests, static analysis, and fork checks into one proof index.
-- Added an actual Halmos-based formal layer proving eight core internal properties.
+- Added an actual Halmos-based formal layer proving nine core internal properties.
 - Expanded machine-checked invariants around asset conservation, flash-borrow cleanup, and no-profit/no-bounty behavior.
 - Added adversarial tests for `ONLY_UNWIND`, blocked hedge closes, and ALP cooldown-constrained unwinds.
 - Added minimal GitHub Actions CI for `forge build/test`, invariant runs, research script checks, scenario backtests, and Slither.
@@ -42,7 +42,7 @@ This release makes the project easier to diligence:
 
 - `forge test` → `54/54 PASS`
 - `forge test --match-path test/Invariant.t.sol` → `5/5 PASS`
-- `python scripts/run_formal.py` → `8/8 PASS`
+- `python scripts/run_formal.py` → `9/9 PASS`
 - `python -m py_compile scripts/backtest.py` → `PASS`
 - `python scripts/backtest.py --days 90 --tvl 100000 --cycles-per-day 4 --gas-gwei 50 --compare-scenarios --json-out cache/backtest-report.json` → `PASS`
 - `slither . --exclude-dependencies --exclude incorrect-equality,timestamp,low-level-calls,naming-convention,cyclomatic-complexity` → `1 finding triaged`
@@ -86,7 +86,7 @@ This release makes the project easier to diligence:
 #### 2. Safety Coverage
 
 - Invariants now cover asset conservation, flash state cleanup, and zero bounty without profit.
-- Formal verification now covers eight symbolic properties around accounting, share math, price-guard behavior, `ONLY_UNWIND`, and no-profit bounty behavior.
+- Formal verification now covers nine symbolic properties around accounting, share math, price-guard behavior, `ONLY_UNWIND`, deposit pausing, and no-profit bounty behavior.
 - Added a dedicated manual review note for the remaining flash-callback hotspot in `docs/PANCAKECALL_AUDIT.md`.
 - Adversarial tests now prove safer behavior under dependency stress.
 
@@ -105,7 +105,7 @@ This release makes the project easier to diligence:
 
 - Solidity regression: `forge test` → `54/54 PASS`
 - Invariants: `forge test --match-path test/Invariant.t.sol` → `5/5 PASS`
-- Formal verification: `python scripts/run_formal.py` → `8/8 PASS`
+- Formal verification: `python scripts/run_formal.py` → `9/9 PASS`
 - Research script: `python -m py_compile scripts/backtest.py` → `PASS`
 - Scenario research run: `python scripts/backtest.py --days 90 --tvl 100000 --cycles-per-day 4 --gas-gwei 50 --compare-scenarios --json-out cache/backtest-report.json` → `PASS`
 - Static analysis: Slither run completed and triaged; only `pancakeCall()` event-order warnings remain

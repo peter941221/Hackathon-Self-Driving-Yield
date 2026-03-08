@@ -286,6 +286,21 @@ contract EngineVaultFormalTest is Test {
         assert(vault.safeCycleCount() == 0);
     }
 
+    function check_depositPausedInOnlyUnwind(uint256 assets) public {
+        _assumePositiveReasonableAmount(assets);
+
+        (EngineVaultFormalHarness vault, MockERC20 asset,,,,) = _deployOnlyUnwindVault();
+        asset.mint(address(vault), 1e18);
+        vault.cycle();
+
+        asset.mint(address(this), assets);
+        asset.approve(address(vault), assets);
+        (bool ok,) = address(vault).call(abi.encodeWithSignature("deposit(uint256,address)", assets, address(this)));
+
+        assert(uint256(vault.riskMode()) == uint256(EngineVault.RiskMode.ONLY_UNWIND));
+        assert(!ok);
+    }
+
     function check_flashBorrowedBaseExcludedWhenUnderwater(uint16 baseBalance, uint16 borrowed) public {
         _assumeReasonableAmount(baseBalance);
         _assumeReasonableAmount(borrowed);

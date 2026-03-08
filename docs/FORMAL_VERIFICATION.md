@@ -4,7 +4,7 @@
 
 This repo now includes an actual symbolic-proof layer using `halmos`, not just conventional tests.
 
-Current local result: `8/8` symbolic properties passing via `python scripts/run_formal.py`.
+Current local result: `9/9` symbolic properties passing via `python scripts/run_formal.py`.
 
 The goal is not to claim that the entire strategy and all external markets are mathematically proven.
 
@@ -22,7 +22,8 @@ Formal targets
 ├─ broken mark => deposit rejection
 ├─ ONLY_UNWIND blocks fresh exposure
 ├─ ONLY_UNWIND recovers after two safe cycles
-└─ flash borrowed base caps at zero when underwater
+├─ flash borrowed base caps at zero when underwater
+└─ deposits pause when risk mode is `ONLY_UNWIND`
 ```
 
 These properties are implemented in `test/FormalEngineVault.t.sol` and run by `scripts/run_formal.py`.

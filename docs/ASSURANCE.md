@@ -43,7 +43,7 @@ Faster investor diligence
 | Economic framing | formulas and caveats are explicit | `ECONOMICS.md` |
 | Regression tests | main contract behavior stays intact | `forge test` |
 | Invariants | key capital-safety properties hold across randomized sequences | `test/Invariant.t.sol` |
-| Formal verification | eight core internal properties hold under symbolic execution | `test/FormalEngineVault.t.sol` |
+| Formal verification | nine core internal properties hold under symbolic execution | `test/FormalEngineVault.t.sol` |
 | Adversarial tests | bad dependencies end in safe revert or safe degradation | `test/AssuranceAdversarial.t.sol` |
 | Static analysis | flash callback and external-call hotspots stay visible | `docs/SLITHER_NOTES.md` |
 | Manual audit focus | remaining callback hotspot has a written human review | `docs/PANCAKECALL_AUDIT.md` |
