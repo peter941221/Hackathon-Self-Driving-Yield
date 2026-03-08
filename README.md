@@ -35,6 +35,7 @@
   <a href="docs/INVESTOR_ONE_PAGER.md">Investor One-Pager</a> •
   <a href="docs/ASSURANCE.md">Assurance Packet</a> •
   <a href="docs/FORMAL_VERIFICATION.md">Formal Verification</a> •
+  <a href="docs/CHAOS_ENGINEERING.md">Chaos Engineering</a> •
   <a href="docs/PANCAKECALL_AUDIT.md">Callback Audit</a> •
   <a href="docs/RELEASE_NOTES.md">Release Notes</a> •
   <a href="docs/GITHUB_ABOUT.md">GitHub About Copy</a>
