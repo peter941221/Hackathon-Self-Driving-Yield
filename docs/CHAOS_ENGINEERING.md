@@ -61,6 +61,12 @@ The right next layer is therefore **protocol chaos** or **dependency chaos**, no
 - Aster failure injection: make `closeTrade`, `burnAlp`, or cooldown paths fail and verify defensive behavior.
 - Gas stress: increase gas assumptions and ensure incentive logic remains bounded.
 
+Implemented entrypoints in this repo:
+
+- `script/ForkChaosScenarios.s.sol`
+- `scripts/check_rpc_degradation.py`
+- `.github/workflows/nightly-chaos.yml`
+
 ### P1 — Add Next
 
 - Repeated-cycle stress on a fork with changing reserves and changing oracle snapshots.
@@ -77,6 +83,12 @@ The right next layer is therefore **protocol chaos** or **dependency chaos**, no
 - **Yes**, introduce chaos engineering ideas.
 - **No**, do not start with Chaos Mesh / Litmus as the main investment.
 - **Start with Foundry/Anvil fork-based fault injection** and scripted dependency degradation.
+
+Current repo implementation follows exactly that recommendation:
+
+- local/fork chaos script: `forge script script/ForkChaosScenarios.s.sol:ForkChaosScenarios -vvv`
+- degraded RPC probe: `python scripts/check_rpc_degradation.py`
+- nightly automation: `.github/workflows/nightly-chaos.yml`
 
 Foundry's Anvil already supports forked execution from a remote RPC endpoint and specific block numbers, which makes it a much better first platform for this repository's chaos-like experiments than infrastructure-oriented chaos tools.
 

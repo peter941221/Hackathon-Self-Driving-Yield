@@ -1,0 +1,42 @@
+name: nightly-chaos
+
+on:
+  schedule:
+    - cron: "30 2 * * *"
+  workflow_dispatch:
+
+jobs:
+  chaos:
+    runs-on: ubuntu-latest
+    env:
+      BSC_RPC_URL: ${{ secrets.BSC_RPC_URL }}
+      BSC_FORK_BLOCK: ${{ secrets.BSC_FORK_BLOCK }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Setup Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+
+      - name: Install Halmos
+        run: pip install halmos
+
+      - name: Probe RPC degradation handling
+        run: python scripts/check_rpc_degradation.py
+
+      - name: Run fork-chaos scenarios
+        run: forge script script/ForkChaosScenarios.s.sol:ForkChaosScenarios -vvv
+
+      - name: Run formal verification
+        run: python scripts/run_formal.py
+
+      - name: Run optional fork suite
+        run: forge test --match-path test/ForkSuite.t.sol

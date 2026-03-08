@@ -14,12 +14,6 @@ contract EngineVaultFormalHarness is EngineVault {
         (uint256 alpValue, uint256 lpValue, uint256 cashValue) = _getPortfolioValues(borrowedBaseAmount);
         return alpValue + lpValue + cashValue + _getHedgeAccountValue();
     }
-
-    function seedCashAndShares(address owner, uint256 supply, uint256 cash) external {
-        totalSupply = supply;
-        balanceOf[owner] = supply;
-        MockERC20(address(asset)).mint(address(this), cash);
-    }
 }
 
 contract EngineVaultFormalTest is Test {
