@@ -311,4 +311,13 @@ contract EngineVaultFormalTest is Test {
 
         assert(vault.totalAssetsExcludingBorrowedBase(borrowed) == 0);
     }
+
+    function check_totalAssetsExcludingZeroBorrowMatchesTotalAssets(uint16 baseBalance) public {
+        _assumeReasonableAmount(baseBalance);
+
+        (EngineVaultFormalHarness vault,, MockERC20 base) = _deployFlashAccountingVault();
+        base.mint(address(vault), baseBalance);
+
+        assert(vault.totalAssetsExcludingBorrowedBase(0) == vault.totalAssets());
+    }
 }

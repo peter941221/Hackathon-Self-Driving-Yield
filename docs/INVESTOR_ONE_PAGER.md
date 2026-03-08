@@ -47,7 +47,7 @@ It is presented as a strategy system with a growing assurance stack:
 
 - `54/54` contract tests passing locally.
 - `5/5` invariant checks passing.
-- `9/9` symbolic formal properties passing via Halmos.
+- `10/10` symbolic formal properties passing via Halmos.
 - adversarial tests covering dependency and unwind edge cases.
 - Slither reduced to `1` remaining finding family focused on flash-callback event ordering.
 
