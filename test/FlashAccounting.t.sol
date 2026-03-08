@@ -4,7 +4,7 @@ import {Test} from "forge-std/Test.sol";
 import {EngineVault} from "../contracts/core/EngineVault.sol";
 import {VolatilityOracle} from "../contracts/core/VolatilityOracle.sol";
 import {IERC20} from "../contracts/interfaces/IERC20.sol";
-import {MockPancakePair} from "./MockPancakePair.sol";
+import {MockLpPair} from "./helpers/AssuranceMocks.sol";
 
 contract MockERC20 {
     string public name = "Mock";
@@ -45,29 +45,30 @@ contract MockERC20 {
 contract EngineVaultHarness is EngineVault {
     constructor(Addresses memory addresses, Config memory config) EngineVault(addresses, config) {}
 
-    function setFlashBorrowed(address token, uint256 amount) external {
-        flashBorrowedToken = token;
-        flashBorrowedAmount = amount;
+    function totalAssetsExcludingBorrowedBase(uint256 borrowedBaseAmount) external view returns (uint256) {
+        (uint256 alpValue, uint256 lpValue, uint256 cashValue) = _getPortfolioValues(borrowedBaseAmount);
+        return alpValue + lpValue + cashValue + _getHedgeAccountValue();
     }
 }
 
 contract FlashAccountingTest is Test {
-    function testFlashBorrowedQuoteExcluded() public {
+    function testFlashBorrowedBaseExcluded() public {
         MockERC20 asset = new MockERC20();
-        asset.mint(address(this), 100e18);
+        MockERC20 base = new MockERC20();
+        base.mint(address(this), 100e18);
 
-        MockPancakePair pair = new MockPancakePair();
-        VolatilityOracle oracle = new VolatilityOracle(address(pair), true, 60, 3);
+        MockLpPair pair = new MockLpPair(address(base), address(asset));
+        pair.setReserves(1e18, 1e18);
         EngineVaultHarness vault = new EngineVaultHarness(
             EngineVault.Addresses({
                 asset: IERC20(address(asset)),
                 asterDiamond: address(0),
                 pancakeFactory: address(0),
-                v2Pair: address(0),
-                pairBase: address(0),
+                v2Pair: address(pair),
+                pairBase: address(base),
                 pairQuote: address(asset),
                 bnbUsdtPair: address(0),
-                volatilityOracle: oracle,
+                volatilityOracle: VolatilityOracle(address(0)),
                 flashPair: address(0)
             }),
             EngineVault.Config({
@@ -90,28 +91,28 @@ contract FlashAccountingTest is Test {
             })
         );
 
-        asset.transfer(address(vault), 100e18);
-        vault.setFlashBorrowed(address(asset), 40e18);
+        base.transfer(address(vault), 100e18);
 
-        assertEq(vault.totalAssets(), 60e18);
+        assertEq(vault.totalAssetsExcludingBorrowedBase(40e18), 60e18);
     }
 
-    function testFlashBorrowedQuoteCapsAtZero() public {
+    function testFlashBorrowedBaseCapsAtZero() public {
         MockERC20 asset = new MockERC20();
-        asset.mint(address(this), 50e18);
+        MockERC20 base = new MockERC20();
+        base.mint(address(this), 50e18);
 
-        MockPancakePair pair = new MockPancakePair();
-        VolatilityOracle oracle = new VolatilityOracle(address(pair), true, 60, 3);
+        MockLpPair pair = new MockLpPair(address(base), address(asset));
+        pair.setReserves(1e18, 1e18);
         EngineVaultHarness vault = new EngineVaultHarness(
             EngineVault.Addresses({
                 asset: IERC20(address(asset)),
                 asterDiamond: address(0),
                 pancakeFactory: address(0),
-                v2Pair: address(0),
-                pairBase: address(0),
+                v2Pair: address(pair),
+                pairBase: address(base),
                 pairQuote: address(asset),
                 bnbUsdtPair: address(0),
-                volatilityOracle: oracle,
+                volatilityOracle: VolatilityOracle(address(0)),
                 flashPair: address(0)
             }),
             EngineVault.Config({
@@ -134,9 +135,8 @@ contract FlashAccountingTest is Test {
             })
         );
 
-        asset.transfer(address(vault), 50e18);
-        vault.setFlashBorrowed(address(asset), 80e18);
+        base.transfer(address(vault), 50e18);
 
-        assertEq(vault.totalAssets(), 0);
+        assertEq(vault.totalAssetsExcludingBorrowedBase(80e18), 0);
     }
 }

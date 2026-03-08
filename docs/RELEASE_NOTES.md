@@ -1,111 +1,116 @@
-﻿# Release Notes
+# Release Notes
 
-## 2026-03-06 — Investor-Ready Research & Risk Hardening
+## 2026-03-08 — Investor Assurance Pack & Safety Coverage
 
 ### Suggested GitHub Release Title
 
-`Investor-Ready Research & Risk Hardening`
-
-### Release Map
-
-```text
-[Risk Accounting]
-      |
-      v
-[Fairer NAV + Share Pricing]
-      |
-      v
-[Cleaner Investor Protection]
-
-[Control Logic]
-      |
-      v
-[Less Churn + Better Unwind Behavior]
-      |
-      v
-[More Stable Automation]
-
-[Research Output]
-      |
-      v
-[Backtest SVG + One-Pager + README Hero]
-      |
-      v
-[Faster Investor Diligence]
-```
+`Investor Assurance Pack & Safety Coverage`
 
 ### Short Release Note
 
-Self-Driving Yield Engine is now materially stronger across accounting, control logic, and investor communication. The vault now accounts for hedge margin and unrealized PnL in NAV, hardens share pricing with TWAP-aware protections, suppresses no-op bounty farming, adds hysteresis plus partial hedge close behavior, and ships a research-grade 90d comparison backtest with investor-ready SVG charts and one-pager assets.
+Self-Driving Yield Engine now ships with a stronger investor-proof story: a dedicated assurance packet, expanded invariants, DeFi adversarial failure-path tests, minimal CI, refreshed Slither triage, and a wider five-scenario research model. The strategy story is still model-based, but the repo now shows more disciplined evidence around accounting, risk controls, and dependency failure handling.
 
 ### Copy-Ready GitHub Release Body
 
 ```md
 ## Highlights
 
-- Hedge-aware NAV now includes margin, unrealized PnL, and accrued hedge fees.
-- Share pricing is hardened with virtual shares plus TWAP-vs-spot deposit protection.
-- Keeper incentives are cleaner: no-op cycles no longer farm gas-only bounty.
-- Control logic is more stable with hysteresis regime switching and partial hedge close.
-- Research output is now investor-ready with baseline/stress backtests, SVG charts, and a one-pager hero embedded in the README.
+- Added an investor-facing `docs/ASSURANCE.md` that links research, tests, static analysis, and fork checks into one proof index.
+- Added an actual Halmos-based formal layer proving six core internal properties.
+- Expanded machine-checked invariants around asset conservation, flash-borrow cleanup, and no-profit/no-bounty behavior.
+- Added adversarial tests for `ONLY_UNWIND`, blocked hedge closes, and ALP cooldown-constrained unwinds.
+- Added minimal GitHub Actions CI for `forge build/test`, invariant runs, research script checks, scenario backtests, and Slither.
+- Upgraded the research menu to five scenarios: `baseline`, `stress`, `funding_adverse`, `liquidity_crunch`, and `gas_spike`.
+- Refreshed Slither notes so the documented findings match the latest actual run, now reduced to callback event-order warnings only.
 
 ## Why It Matters
 
-This release moves the project from a strong hackathon prototype toward a more investor-legible system:
+This release makes the project easier to diligence:
 
-- Better accounting improves NAV credibility.
-- Better controls reduce churn and pathological rebalance behavior.
-- Better research assets shorten diligence time for partners and investors.
+- investors can see a cleaner evidence stack,
+- reviewers can reproduce the commands locally,
+- and safety discussions can point to concrete invariants and adversarial tests instead of only narrative claims.
 
-## Investor Snapshot (as of 2026-03-06)
+## Investor Snapshot (research output as of 2026-03-07)
 
 | Scenario | Dynamic CAGR | Dynamic CumRet | Fixed NORMAL CAGR | Pure LP CAGR | Dynamic MaxDD | Trade Days |
 |---|---:|---:|---:|---:|---:|---:|
-| Baseline | 14.29% | 3.31% | 13.08% | -1.44% | -0.06% | 5 |
-| Stress | 9.94% | 2.34% | 8.68% | -11.04% | -0.17% | 5 |
+| Baseline | 14.09% | 3.27% | 13.34% | -1.55% | -0.07% | 7 |
+| Stress | 9.66% | 2.28% | 9.05% | -11.05% | -0.22% | 7 |
 
 ## Validation
 
-- `forge test` → 48/48 passing
-- `python -m py_compile scripts/backtest.py`
-- `python scripts/backtest.py --days 90 --tvl 100000 --cycles-per-day 4 --gas-gwei 50 --compare-scenarios --svg-dir docs/assets --one-pager-svg docs/assets/investor-one-pager.svg --json-out out/backtest-report.json`
+- `forge test` → `54/54 PASS`
+- `forge test --match-path test/Invariant.t.sol` → `5/5 PASS`
+- `python scripts/run_formal.py` → `6/6 PASS`
+- `python -m py_compile scripts/backtest.py` → `PASS`
+- `python scripts/backtest.py --days 90 --tvl 100000 --cycles-per-day 4 --gas-gwei 50 --compare-scenarios --json-out cache/backtest-report.json` → `PASS`
+- `slither . --exclude-dependencies --exclude incorrect-equality,timestamp,low-level-calls,naming-convention,cyclomatic-complexity` → `1 finding triaged`
+```
+
+### Release Map
+
+```text
+[Research Model]
+      |
+      v
+[5 Scenarios + Reproducible Outputs]
+      |
+      v
+[Stronger Diligence Story]
+
+[Contract Safety]
+      |
+      v
+[Regression + Invariants + Adversarial Tests]
+      |
+      v
+[More Credible Risk Controls]
+
+[Engineering Workflow]
+      |
+      v
+[CI + Current Slither Triage]
+      |
+      v
+[Repeatable Validation]
 ```
 
 ### What Changed
 
-#### 1. Risk Accounting (Risk Accounting)
+#### 1. Assurance Layer
 
-- Hedge account value is included in vault NAV: margin + unrealized PnL - accrued fees.
-- LP and base exposure valuation prefer oracle TWAP marks over raw spot when available.
-- Deposit and redeem flows now sit behind stronger fair-value assumptions.
+- Added `docs/ASSURANCE.md` as the single investor-facing index for proof points.
+- Linked research, tests, static analysis, and fork checks in one place.
 
-#### 2. Investor Protection (Investor Protection)
+#### 2. Safety Coverage
 
-- Virtual assets / virtual shares reduce ERC-4626-style inflation surface.
-- TWAP-vs-spot deposit guard blocks obviously distorted entry conditions.
-- `ONLY_UNWIND` safety mode keeps the system defensive under oracle deviation / NAV shock conditions.
+- Invariants now cover asset conservation, flash state cleanup, and zero bounty without profit.
+- Formal verification now covers six symbolic properties around accounting, price-guard behavior, `ONLY_UNWIND`, and no-profit bounty behavior.
+- Adversarial tests now prove safer behavior under dependency stress.
 
-#### 3. Control Loop (Control Loop)
+#### 3. Research Story
 
-- Hysteresis reduces noisy regime flipping.
-- Partial hedge close unwinds only what is needed to re-enter band.
-- No-op bounty suppression aligns permissionless automation with useful work.
+- Backtest coverage now extends beyond `baseline` and `stress` into funding, liquidity, and gas-stress variants.
+- The repo can now show both upside narrative and stress-discipline narrative more cleanly.
 
-#### 4. Research & Communication (Research Output)
+#### 4. Validation Workflow
 
-- The backtest now compares `dynamic`, `fixed_normal`, `pure_alp`, and `pure_lp`.
-- `README.md` now carries investor KPI badges, stress/baseline SVG charts, and a one-pager hero.
-- `docs/assets/investor-one-pager.svg` is ready for README and social preview usage.
+- Added minimal GitHub Actions CI.
+- Updated Slither notes to match the latest real output rather than an older zero-finding summary.
+- Reduced flash-path static-analysis noise by moving flash callback context out of storage and into local execution context.
 
 ### Validation Summary
 
-- Solidity regression: `forge test` → `48/48 PASS`
+- Solidity regression: `forge test` → `54/54 PASS`
+- Invariants: `forge test --match-path test/Invariant.t.sol` → `5/5 PASS`
+- Formal verification: `python scripts/run_formal.py` → `6/6 PASS`
 - Research script: `python -m py_compile scripts/backtest.py` → `PASS`
-- Investor asset generation: backtest JSON + SVG charts + one-pager SVG regenerated successfully
+- Scenario research run: `python scripts/backtest.py --days 90 --tvl 100000 --cycles-per-day 4 --gas-gwei 50 --compare-scenarios --json-out cache/backtest-report.json` → `PASS`
+- Static analysis: Slither run completed and triaged; only `pancakeCall()` event-order warnings remain
 
 ### Residual Risk
 
-- KPI values are still point-in-time research outputs, not realized live performance.
-- CoinGecko historical backfill can still move trailing-window numbers slightly over time.
-- ALP carry, funding, and execution assumptions remain model inputs rather than audited production PnL.
-
+- Research KPIs remain model outputs, not realized live vault performance.
+- `pancakeCall()` is still the main manual-audit hotspot because flash callbacks inherently combine external calls and event emission ordering.
+- This release improves assurance discipline, but it does not replace an external smart-contract audit.

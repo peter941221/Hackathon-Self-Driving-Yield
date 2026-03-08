@@ -57,9 +57,6 @@ contract EngineVault {
     uint256 public lastKnownNav;
     uint256 public lastRegimeSwitchTimestamp;
     uint8 public safeCycleCount;
-    bool private inFlashRebalance;
-    address public flashBorrowedToken;
-    uint256 public flashBorrowedAmount;
     uint256 private reentrancyLock;
 
     enum RiskMode {
@@ -216,9 +213,9 @@ contract EngineVault {
         totalSupply += shares;
         balanceOf[receiver] += shares;
 
-        require(asset.transferFrom(msg.sender, address(this), assets), "TRANSFER_IN");
         // Exclude net deposits from the cycle profit baseline to avoid bounty extracting principal.
         lastTotalAssets += assets;
+        require(asset.transferFrom(msg.sender, address(this), assets), "TRANSFER_IN");
         emit Deposit(msg.sender, receiver, assets, shares);
     }
 
@@ -311,18 +308,16 @@ contract EngineVault {
     function pancakeCall(address sender, uint256 amount0, uint256 amount1, bytes calldata data) external {
         require(msg.sender == flashPair, "INVALID_PAIR");
         require(sender == address(this), "INVALID_SENDER");
-        require(inFlashRebalance, "FLASH_INACTIVE");
 
         uint256 expectedBorrowed = abi.decode(data, (uint256));
         uint256 borrowed = flashBaseIsToken0 ? amount0 : amount1;
         require(borrowed > 0 && borrowed == expectedBorrowed, "BORROW_MISMATCH");
-        require(borrowed == flashBorrowedAmount, "BORROW_STATE");
 
         address repayToken = flashRepayToken;
         uint256 repayAmount = _getFlashRepayAmount(borrowed);
 
         _removeAllLp();
-        _rebalanceAssets();
+        _rebalanceAssetsAfterFlashBorrow(borrowed);
         _rebalanceHedge();
 
         _ensureRepayToken(repayToken, repayAmount);
@@ -335,18 +330,11 @@ contract EngineVault {
             return;
         }
 
-        inFlashRebalance = true;
-        flashBorrowedToken = pairBase;
-        flashBorrowedAmount = borrowAmount;
         emit FlashBorrowed(pairBase, borrowAmount);
 
         uint256 amount0Out = flashBaseIsToken0 ? borrowAmount : 0;
         uint256 amount1Out = flashBaseIsToken0 ? 0 : borrowAmount;
         IPancakePairV2(flashPair).swap(amount0Out, amount1Out, address(this), abi.encode(borrowAmount));
-
-        inFlashRebalance = false;
-        flashBorrowedToken = address(0);
-        flashBorrowedAmount = 0;
     }
 
     function _getFlashRepayAmount(uint256 borrowed) internal view returns (uint256 repayAmount) {
@@ -359,6 +347,7 @@ contract EngineVault {
     }
 
     function unwindForWithdraw(uint256 amount) external nonReentrant {
+        uint256 freedAssets = 0;
         if (!enableExternalCalls) {
             emit UnwindForWithdraw(amount);
             return;
@@ -374,15 +363,21 @@ contract EngineVault {
         if (v2Pair != address(0) && pairBase != address(0) && pairQuote != address(0)) {
             uint256 lpBal = IERC20(v2Pair).balanceOf(address(this));
             if (lpBal > 0) {
-                PancakeV2Adapter.removeLiquidity(pairBase, pairQuote, lpBal, 50);
+                (uint256 amountA, uint256 amountB) = PancakeV2Adapter.removeLiquidity(pairBase, pairQuote, lpBal, 50);
+                freedAssets += amountA + amountB;
             }
         }
 
         if (asterDiamond != address(0) && AsterAlpAdapter.canBurn(asterDiamond)) {
             uint256 alpBal = AsterAlpAdapter.getAlpBalance(asterDiamond, address(this));
             if (alpBal > 0) {
-                AsterAlpAdapter.burnAlp(asterDiamond, address(asset), alpBal, 0);
+                freedAssets += AsterAlpAdapter.burnAlp(asterDiamond, address(asset), alpBal, 0);
             }
+        }
+
+        if (freedAssets == 0) {
+            emit UnwindForWithdraw(amount);
+            return;
         }
 
         emit UnwindForWithdraw(amount);
@@ -473,24 +468,8 @@ contract EngineVault {
     }
 
     function _rebalanceAssets() internal returns (bool didWork) {
-        (uint256 alpValue, uint256 lpValue, uint256 cashValue) = _getPortfolioValues();
-        uint256 totalValue = alpValue + lpValue + cashValue + _getHedgeAccountValue();
-        if (totalValue == 0) {
-            return false;
-        }
-
-        (uint16 targetAlpBps, uint16 targetLpBps) = _computeTargetAllocation();
-        uint256 targetAlpValue = totalValue * targetAlpBps / 10000;
-        uint256 targetLpValue = totalValue * targetLpBps / 10000;
-
-        int256 alpDelta = int256(targetAlpValue) - int256(alpValue);
-        int256 lpDelta = int256(targetLpValue) - int256(lpValue);
-
-        uint256 alpDeviation = MathLib.absDiff(targetAlpValue, alpValue);
-        uint256 lpDeviation = MathLib.absDiff(targetLpValue, lpValue);
-        uint256 deviation = alpDeviation > lpDeviation ? alpDeviation : lpDeviation;
-        uint256 deviationBps = deviation * 10000 / totalValue;
-        if (deviationBps < rebalanceThresholdBps) {
+        (bool shouldRebalance, int256 alpDelta, int256 lpDelta, uint256 totalValue) = _getRebalancePlan(0);
+        if (!shouldRebalance) {
             return false;
         }
 
@@ -501,6 +480,63 @@ contract EngineVault {
         }
 
         if (riskMode == RiskMode.ONLY_UNWIND) {
+            return _executeRebalancePlan(alpDelta, lpDelta, true);
+        }
+
+        if (flashPair != address(0) && currentRegime == VolatilityOracle.Regime.STORM) {
+            uint256 borrowAmount = _calcFlashBorrowAmount(lpDelta, totalValue);
+            if (borrowAmount > 0) {
+                _executeFlashRebalance(borrowAmount);
+                return true;
+            }
+        }
+
+        return _executeRebalancePlan(alpDelta, lpDelta, false);
+    }
+
+    function _rebalanceAssetsAfterFlashBorrow(uint256 flashBorrowedBaseAmount)
+        internal
+        returns (bool didWork)
+    {
+        (bool shouldRebalance, int256 alpDelta, int256 lpDelta,) = _getRebalancePlan(flashBorrowedBaseAmount);
+        if (!shouldRebalance || !enableExternalCalls) {
+            return false;
+        }
+
+        return _executeRebalancePlan(alpDelta, lpDelta, riskMode == RiskMode.ONLY_UNWIND);
+    }
+
+    function _getRebalancePlan(uint256 flashBorrowedBaseAmount)
+        internal
+        view
+        returns (bool shouldRebalance, int256 alpDelta, int256 lpDelta, uint256 totalValue)
+    {
+        (uint256 alpValue, uint256 lpValue, uint256 cashValue) = _getPortfolioValues(flashBorrowedBaseAmount);
+        totalValue = alpValue + lpValue + cashValue + _getHedgeAccountValue();
+        if (totalValue == 0) {
+            return (false, 0, 0, 0);
+        }
+
+        (uint16 targetAlpBps, uint16 targetLpBps) = _computeTargetAllocation();
+        uint256 targetAlpValue = totalValue * targetAlpBps / 10000;
+        uint256 targetLpValue = totalValue * targetLpBps / 10000;
+
+        alpDelta = int256(targetAlpValue) - int256(alpValue);
+        lpDelta = int256(targetLpValue) - int256(lpValue);
+
+        uint256 alpDeviation = MathLib.absDiff(targetAlpValue, alpValue);
+        uint256 lpDeviation = MathLib.absDiff(targetLpValue, lpValue);
+        uint256 deviation = alpDeviation > lpDeviation ? alpDeviation : lpDeviation;
+        uint256 deviationBps = deviation * 10000 / totalValue;
+        if (deviationBps < rebalanceThresholdBps) {
+            return (false, 0, 0, totalValue);
+        }
+
+        return (true, alpDelta, lpDelta, totalValue);
+    }
+
+    function _executeRebalancePlan(int256 alpDelta, int256 lpDelta, bool unwindOnly) internal returns (bool didWork) {
+        if (unwindOnly) {
             if (alpDelta < 0) {
                 didWork = _reduceAlp(uint256(-alpDelta)) || didWork;
             }
@@ -508,17 +544,6 @@ contract EngineVault {
                 didWork = _reduceLp(uint256(-lpDelta)) || didWork;
             }
             return didWork;
-        }
-
-        if (
-            enableExternalCalls && !inFlashRebalance && flashPair != address(0)
-                && currentRegime == VolatilityOracle.Regime.STORM
-        ) {
-            uint256 borrowAmount = _calcFlashBorrowAmount(lpDelta, totalValue);
-            if (borrowAmount > 0) {
-                _executeFlashRebalance(borrowAmount);
-                return true;
-            }
         }
 
         if (alpDelta > 0) {
@@ -837,6 +862,14 @@ contract EngineVault {
     }
 
     function _getPortfolioValues() internal view returns (uint256 alpValue, uint256 lpValue, uint256 cashValue) {
+        return _getPortfolioValues(0);
+    }
+
+    function _getPortfolioValues(uint256 flashBorrowedBaseAmount)
+        internal
+        view
+        returns (uint256 alpValue, uint256 lpValue, uint256 cashValue)
+    {
         if (asterDiamond != address(0)) {
             alpValue = AsterAlpAdapter.getAlpValueInUsd(asterDiamond, address(this));
         }
@@ -851,12 +884,8 @@ contract EngineVault {
 
         uint256 quoteBalance = asset.balanceOf(address(this));
         uint256 baseBalance = pairBase == address(0) ? 0 : IERC20(pairBase).balanceOf(address(this));
-        if (flashBorrowedAmount > 0) {
-            if (flashBorrowedToken == pairQuote) {
-                quoteBalance = quoteBalance > flashBorrowedAmount ? quoteBalance - flashBorrowedAmount : 0;
-            } else if (flashBorrowedToken == pairBase) {
-                baseBalance = baseBalance > flashBorrowedAmount ? baseBalance - flashBorrowedAmount : 0;
-            }
+        if (flashBorrowedBaseAmount > 0) {
+            baseBalance = baseBalance > flashBorrowedBaseAmount ? baseBalance - flashBorrowedBaseAmount : 0;
         }
         uint256 baseValueCash = basePrice == 0 ? 0 : (baseBalance * basePrice) / 1e18;
         cashValue = quoteBalance + baseValueCash;

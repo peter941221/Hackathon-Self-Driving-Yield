@@ -26,69 +26,78 @@ It rotates capital across:
 ```
 
 - Pure LP is vulnerable to impermanent loss.
-
 - Pure ALP is a concentration bet.
-
-- The product thesis is a **middle path**: adaptive allocation plus hedge-aware controls.
+- The target product shape is a middle path: adaptive allocation plus hedge-aware controls.
 
 
 ## Why It Is More Investable Now
 
-- **Accurate NAV**: hedge account value is included in vault accounting.
-
-- **Fairer Share Pricing**: virtual shares plus TWAP-vs-spot deposit guard reduce inflation/manipulation surface.
-
+- **More Accurate NAV**: hedge account value is included in vault accounting.
+- **Fairer Share Pricing**: virtual shares plus TWAP-vs-spot guards reduce manipulation surface.
 - **Cleaner Incentives**: no-op cycles no longer farm gas-only bounty.
+- **Safer Control Logic**: hysteresis, partial hedge close, and `ONLY_UNWIND` improve defensive behavior.
+- **Better Evidence**: the repo now includes invariants, adversarial tests, static-analysis triage, and CI.
 
-- **More Stable Control**: hysteresis regime switching and partial hedge close reduce churn.
+
+## Assurance Snapshot
+
+This repo is not presented as “fully formally verified production software”.
+
+It is presented as a strategy system with a growing assurance stack:
+
+- `54/54` contract tests passing locally.
+- `5/5` invariant checks passing.
+- `6/6` symbolic formal properties passing via Halmos.
+- adversarial tests covering dependency and unwind edge cases.
+- Slither reduced to `1` remaining finding family focused on flash-callback event ordering.
+- optional BNB Chain fork checks for live integration readability.
+
+For the full proof index, see `docs/ASSURANCE.md`.
 
 
 ## Research Snapshot (90d model)
 
-As of `2026-03-06` using trailing 90d CoinGecko BTC data.
+As of `2026-03-07` using trailing 90d CoinGecko BTC data.
 
 Assumptions:
 
 - `TVL = $100k`
 - `BTC path = CoinGecko daily data`
-- `Baseline + Stress scenarios`
-- `Dynamic vs Fixed NORMAL vs Pure ALP vs Pure LP`
+- scenarios = `baseline`, `stress`, `funding_adverse`, `liquidity_crunch`, `gas_spike`
+- comparison = `dynamic` vs `fixed_normal` vs `pure_alp` vs `pure_lp`
 
 
 ### Baseline
 
-- Dynamic CAGR: `14.29%`
-- Dynamic cumulative return: `3.31%`
-- Dynamic max drawdown: `-0.06%`
-- Fixed NORMAL CAGR: `13.08%`
-- Pure LP CAGR: `-1.44%`
+- Dynamic CAGR: `14.09%`
+- Dynamic cumulative return: `3.27%`
+- Dynamic max drawdown: `-0.07%`
+- Fixed NORMAL CAGR: `13.34%`
+- Pure LP CAGR: `-1.55%`
 
 
 ### Stress
 
-- Dynamic CAGR: `9.94%`
-- Dynamic cumulative return: `2.34%`
-- Dynamic max drawdown: `-0.17%`
-- Fixed NORMAL CAGR: `8.68%`
-- Pure LP CAGR: `-11.04%`
+- Dynamic CAGR: `9.66%`
+- Dynamic cumulative return: `2.28%`
+- Dynamic max drawdown: `-0.22%`
+- Fixed NORMAL CAGR: `9.05%`
+- Pure LP CAGR: `-11.05%`
 
 
 ## Interpretation
 
-- Dynamic strategy remains positive in the model under both baseline and stress scenarios.
-
-- Pure LP is the cleanest negative control: it shows why IL-aware risk management matters.
-
+- The dynamic strategy remains positive in the model under both baseline and stress assumptions.
+- Pure LP remains the cleanest negative control: it shows why IL-aware risk management matters.
 - Pure ALP can outperform in some windows, but that is concentration risk, not the intended product shape.
+- The stronger investor story is now “adaptive strategy + clearer assurance”, not just “higher modeled return”.
 
 
-## Current Risk Framing
+## Boundaries
 
-- This is still a **research model**, not realized production performance.
-
-- ALP returns are parameterized (`carry + volatility capture - move drag`).
-
-- Hedge PnL is approximated from LP base exposure, not a full liquidation-path replay.
+- This is still a research model, not realized production performance.
+- ALP carry and hedge behavior are modeled, not full live liquidation-path replay.
+- The remaining static-analysis hotspot is still the flash callback path, which is exactly where manual audit attention should stay focused.
 
 
 ## Visual Asset

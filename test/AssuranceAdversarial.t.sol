@@ -7,7 +7,7 @@ import {VolatilityOracle} from "../contracts/core/VolatilityOracle.sol";
 import {MockERC20} from "./MockERC20.sol";
 import {MockVaultOracle, MockLpPair, MockHedgeDiamond} from "./helpers/AssuranceMocks.sol";
 
-contract InvestorProtectionTest is Test {
+contract AssuranceAdversarialTest is Test {
     function _deployVault(
         MockERC20 asset,
         MockERC20 base,
@@ -51,89 +51,61 @@ contract InvestorProtectionTest is Test {
         );
     }
 
-    function testTotalAssetsIncludesHedgeMarginPnlAndFees() public {
+    function testOnlyUnwindSkipsRiskAddingLpRebalance() public {
         MockERC20 asset = new MockERC20("USDT", "USDT", 18);
         MockERC20 base = new MockERC20("BTCB", "BTCB", 18);
         MockERC20 alp = new MockERC20("ALP", "ALP", 18);
         MockLpPair pair = new MockLpPair(address(base), address(asset));
-        MockVaultOracle oracle = new MockVaultOracle(address(pair), 1, 90e18);
+        MockVaultOracle oracle = new MockVaultOracle(address(pair), 1, 1e18);
         MockHedgeDiamond diamond = new MockHedgeDiamond(address(alp), address(asset), address(base));
+        EngineVault vault = _deployVault(asset, base, diamond, address(pair), address(oracle), true, 200, 3700);
 
         pair.setReserves(1e18, 1e18);
-        diamond.setShortPosition(bytes32("short-1"), 100e18, uint80(1e10), uint64(100e8), int256(5e18), 2e18);
-
-        EngineVault vault = _deployVault(asset, base, diamond, address(pair), address(oracle), false, 200, 0);
-
-        assertEq(vault.totalAssets(), 103e18);
-    }
-
-    function testVirtualSharesDefendDonationInflation() public {
-        MockERC20 asset = new MockERC20("USDT", "USDT", 18);
-        MockERC20 base = new MockERC20("BTCB", "BTCB", 18);
-        MockERC20 alp = new MockERC20("ALP", "ALP", 18);
-        MockHedgeDiamond diamond = new MockHedgeDiamond(address(alp), address(asset), address(base));
-
-        EngineVault vault = _deployVault(asset, base, diamond, address(0), address(0), false, 200, 0);
-
-        address attacker = address(0xA11CE);
-        address victim = address(0xB0B);
-        asset.mint(attacker, 1e18);
-        asset.mint(victim, 1e18);
-
-        vm.startPrank(attacker);
-        asset.approve(address(vault), 1e18);
-        vault.deposit(1e18, attacker);
-        vm.stopPrank();
-
-        asset.mint(address(vault), 1_000_000e18);
-
-        vm.startPrank(victim);
-        asset.approve(address(vault), 1e18);
-        uint256 victimShares = vault.deposit(1e18, victim);
-        vm.stopPrank();
-
-        assertGt(victimShares, 0);
-        assertGt(victimShares, 4e17);
-    }
-
-    function testDepositRevertsWhenPriceGuardBroken() public {
-        MockERC20 asset = new MockERC20("USDT", "USDT", 18);
-        MockERC20 base = new MockERC20("BTCB", "BTCB", 18);
-        MockERC20 alp = new MockERC20("ALP", "ALP", 18);
-        MockLpPair pair = new MockLpPair(address(base), address(asset));
-        MockVaultOracle oracle = new MockVaultOracle(address(pair), 1, 1e18);
-        MockHedgeDiamond diamond = new MockHedgeDiamond(address(alp), address(asset), address(base));
-        EngineVault vault = _deployVault(asset, base, diamond, address(pair), address(oracle), false, 200, 0);
-
-        pair.setReserves(1e18, 5e17);
         asset.mint(address(this), 100e18);
         asset.approve(address(vault), 100e18);
-
-        vm.expectRevert("PRICE_GUARD");
         vault.deposit(100e18, address(this));
+
+        pair.setReserves(1e18, 5e17);
+        vault.cycle();
+
+        assertEq(uint256(vault.riskMode()), uint256(EngineVault.RiskMode.ONLY_UNWIND));
+        assertEq(asset.balanceOf(address(vault)), 100e18);
+        assertEq(pair.balanceOf(address(vault)), 0);
+        assertEq(alp.balanceOf(address(vault)), 0);
     }
 
-    function testPartialHedgeCloseOnlyClosesNeededPositions() public {
+    function testCycleRevertsSafelyWhenOverhedgedCloseIsBlocked() public {
         MockERC20 asset = new MockERC20("USDT", "USDT", 18);
         MockERC20 base = new MockERC20("BTCB", "BTCB", 18);
         MockERC20 alp = new MockERC20("ALP", "ALP", 18);
         MockLpPair pair = new MockLpPair(address(base), address(asset));
-        MockVaultOracle oracle = new MockVaultOracle(address(pair), 1, 1e18);
         MockHedgeDiamond diamond = new MockHedgeDiamond(address(alp), address(asset), address(base));
-        EngineVault vault = _deployVault(asset, base, diamond, address(pair), address(oracle), true, 0, 10000);
+        EngineVault vault = _deployVault(asset, base, diamond, address(pair), address(0), true, 0, 10000);
 
         pair.setReserves(1e18, 1e18);
         pair.setTotalSupply(1e18);
         pair.setBalance(address(vault), 6e17);
+        diamond.setShortPosition(bytes32("short-a"), 60e18, uint80(8e9), uint64(100e8), 0, 0);
+        diamond.setRevertOnCloseTrade(true);
 
-        diamond.setShortPosition(bytes32("short-a"), 60e18, uint80(6e9), uint64(100e8), 0, 0);
-        diamond.setShortPosition(bytes32("short-b"), 60e18, uint80(6e9), uint64(100e8), 0, 0);
-
-        oracle.setSnapshotCount(1);
-        oracle.setVolatilityBps(200);
+        vm.expectRevert("CLOSE_BLOCKED");
         vault.cycle();
+    }
 
-        assertEq(diamond.closedCount(), 1);
-        assertEq(diamond.closedAt(0), bytes32("short-a"));
+    function testUnwindForWithdrawSkipsAlpBurnDuringCooldown() public {
+        MockERC20 asset = new MockERC20("USDT", "USDT", 18);
+        MockERC20 base = new MockERC20("BTCB", "BTCB", 18);
+        MockERC20 alp = new MockERC20("ALP", "ALP", 18);
+        MockHedgeDiamond diamond = new MockHedgeDiamond(address(alp), address(asset), address(base));
+        EngineVault vault = _deployVault(asset, base, diamond, address(0), address(0), true, 200, 0);
+
+        alp.mint(address(vault), 25e18);
+        diamond.setCooldown(1 days);
+        diamond.setLastMintedTimestamp(block.timestamp);
+
+        vault.unwindForWithdraw(10e18);
+
+        assertEq(alp.balanceOf(address(vault)), 25e18);
+        assertEq(asset.balanceOf(address(vault)), 0);
     }
 }

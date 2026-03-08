@@ -299,8 +299,6 @@ contract FlashSwapAtomicCycleTest is Test {
         vault.cycle();
 
         assertEq(v2Pair.balanceOf(address(vault)), 0);
-        assertEq(vault.flashBorrowedToken(), address(0));
-        assertEq(vault.flashBorrowedAmount(), 0);
         assertEq(wbnb.balanceOf(address(vault)), 0);
     }
 }

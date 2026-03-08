@@ -46,6 +46,8 @@ contract MockERC20 {
 contract Handler is Test {
     EngineVault internal vault;
     MockERC20 internal asset;
+    uint256 public totalMinted;
+    uint256 public totalCycleBounty;
 
     constructor(EngineVault vault_, MockERC20 asset_) {
         vault = vault_;
@@ -55,6 +57,7 @@ contract Handler is Test {
     function deposit(uint256 amount) external {
         amount = bound(amount, 1, 1000e18);
         asset.mint(address(this), amount);
+        totalMinted += amount;
         asset.approve(address(vault), amount);
         vault.deposit(amount, address(this));
     }
@@ -67,6 +70,17 @@ contract Handler is Test {
         shares = bound(shares, 1, bal);
         vault.redeem(shares, address(this), address(this));
     }
+
+    function cycle(uint256 warpBy) external {
+        warpBy = bound(warpBy, 1, 1 days);
+        vm.warp(block.timestamp + warpBy);
+        uint256 beforeBalance = asset.balanceOf(address(this));
+        vault.cycle();
+        uint256 afterBalance = asset.balanceOf(address(this));
+        if (afterBalance > beforeBalance) {
+            totalCycleBounty += afterBalance - beforeBalance;
+        }
+    }
 }
 
 contract EngineVaultInvariantTest is StdInvariant, Test {
@@ -77,6 +91,7 @@ contract EngineVaultInvariantTest is StdInvariant, Test {
     function setUp() public {
         asset = new MockERC20();
         MockPancakePair pair = new MockPancakePair();
+        pair.setReserves(1e18, 1e18, uint32(block.timestamp));
         VolatilityOracle oracle = new VolatilityOracle(address(pair), true, 60, 3);
         vault = new EngineVault(
             EngineVault.Addresses({
@@ -92,7 +107,7 @@ contract EngineVaultInvariantTest is StdInvariant, Test {
             }),
             EngineVault.Config({
                 enableExternalCalls: false,
-                minCycleInterval: 60,
+                minCycleInterval: 1,
                 rebalanceThresholdBps: 500,
                 deltaBandBps: 200,
                 profitBountyBps: 1000,
@@ -120,5 +135,17 @@ contract EngineVaultInvariantTest is StdInvariant, Test {
 
     function invariant_totalAssetsEqualsCash() public view {
         assertEq(vault.totalAssets(), asset.balanceOf(address(vault)));
+    }
+
+    function invariant_assetConservationBetweenVaultAndHandler() public view {
+        assertEq(asset.balanceOf(address(vault)) + asset.balanceOf(address(handler)), handler.totalMinted());
+    }
+
+    function invariant_noBountyPaidWithoutProfit() public view {
+        assertEq(handler.totalCycleBounty(), 0);
+    }
+
+    function invariant_previewDepositPositiveForPositiveAssets() public view {
+        assertGt(vault.previewDeposit(1e18), 0);
     }
 }

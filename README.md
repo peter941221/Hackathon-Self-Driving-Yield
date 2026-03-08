@@ -8,7 +8,7 @@
   <a href="https://www.youtube.com/watch?v=rdQyEShM0vs">
     <img src="https://img.shields.io/badge/Demo-Video-red?style=for-the-badge&logo=youtube" alt="Demo Video">
   </a>
-  <img src="https://img.shields.io/badge/Tests-48%2F48%20Passing-brightgreen?style=for-the-badge" alt="Tests">
+  <img src="https://img.shields.io/badge/Tests-54%2F54%20Passing-brightgreen?style=for-the-badge" alt="Tests">
   <img src="https://img.shields.io/badge/Platform-BNB%20Chain-yellow?style=for-the-badge" alt="Platform">
   <img src="https://img.shields.io/badge/Baseline%20CAGR-14.29%25-2563eb?style=for-the-badge" alt="Baseline CAGR">
   <img src="https://img.shields.io/badge/Stress%20CAGR-9.94%25-0f766e?style=for-the-badge" alt="Stress CAGR">
@@ -33,6 +33,8 @@
 <p align="center">
   <strong>📄 Quick Links</strong><br>
   <a href="docs/INVESTOR_ONE_PAGER.md">Investor One-Pager</a> •
+  <a href="docs/ASSURANCE.md">Assurance Packet</a> •
+  <a href="docs/FORMAL_VERIFICATION.md">Formal Verification</a> •
   <a href="docs/RELEASE_NOTES.md">Release Notes</a> •
   <a href="docs/GITHUB_ABOUT.md">GitHub About Copy</a>
 </p>
@@ -325,11 +327,14 @@ flowchart TD
 ```bash
 forge build
 forge test
+python scripts/run_formal.py
 forge fmt
 python scripts/backtest.py --days 90 --tvl 100000 --cycles-per-day 4 --gas-gwei 50 --compare-scenarios
 ```
 
-Latest local validation: `48/48` tests passing.
+Latest local validation: `54/54` tests passing.
+
+Formal verification: `6/6` symbolic properties passing via `python scripts/run_formal.py`.
 
 Invariant tests:
 

@@ -53,6 +53,45 @@ SCENARIOS = {
         "gas_used": 700_000,
         "rebalance_threshold_weight": 0.03,
     },
+    "funding_adverse": {
+        "alp_apr": {"CALM": 0.09, "NORMAL": 0.13, "STORM": 0.19},
+        "alp_vol_capture": {"CALM": 0.000, "NORMAL": 0.008, "STORM": 0.055},
+        "alp_move_drag": {"CALM": 0.005, "NORMAL": 0.009, "STORM": 0.016},
+        "lp_fee_apr": {"CALM": 0.06, "NORMAL": 0.09, "STORM": 0.13},
+        "funding_bps_per_day": {"CALM": 6.0, "NORMAL": 11.0, "STORM": 18.0},
+        "pool_fee_bps": 20.0,
+        "slippage_bps": 7.0,
+        "hedge_trade_bps": 4.0,
+        "hedge_ratio": 1.0,
+        "gas_used": 550_000,
+        "rebalance_threshold_weight": 0.025,
+    },
+    "liquidity_crunch": {
+        "alp_apr": {"CALM": 0.08, "NORMAL": 0.12, "STORM": 0.17},
+        "alp_vol_capture": {"CALM": 0.000, "NORMAL": 0.007, "STORM": 0.045},
+        "alp_move_drag": {"CALM": 0.006, "NORMAL": 0.010, "STORM": 0.018},
+        "lp_fee_apr": {"CALM": 0.05, "NORMAL": 0.08, "STORM": 0.10},
+        "funding_bps_per_day": {"CALM": 2.0, "NORMAL": 5.0, "STORM": 10.0},
+        "pool_fee_bps": 20.0,
+        "slippage_bps": 20.0,
+        "hedge_trade_bps": 12.0,
+        "hedge_ratio": 1.0,
+        "gas_used": 650_000,
+        "rebalance_threshold_weight": 0.04,
+    },
+    "gas_spike": {
+        "alp_apr": {"CALM": 0.10, "NORMAL": 0.14, "STORM": 0.20},
+        "alp_vol_capture": {"CALM": 0.000, "NORMAL": 0.008, "STORM": 0.050},
+        "alp_move_drag": {"CALM": 0.004, "NORMAL": 0.008, "STORM": 0.015},
+        "lp_fee_apr": {"CALM": 0.06, "NORMAL": 0.09, "STORM": 0.13},
+        "funding_bps_per_day": {"CALM": 1.5, "NORMAL": 3.0, "STORM": 7.0},
+        "pool_fee_bps": 20.0,
+        "slippage_bps": 6.0,
+        "hedge_trade_bps": 4.0,
+        "hedge_ratio": 1.0,
+        "gas_used": 850_000,
+        "rebalance_threshold_weight": 0.02,
+    },
 }
 
 STRATEGIES = ("dynamic", "fixed_normal", "pure_alp", "pure_lp")
@@ -390,7 +429,7 @@ def render_scenario_svg(report, output_path):
     max_abs_cagr = max(abs(results[name]["summary"]["cagr"] * 100.0) for name in STRATEGIES)
     scale = (right_bound - zero_x - 20) / max(max_abs_cagr, 1.0)
 
-    scenario_label = "Baseline" if scenario_name == "baseline" else "Stress"
+    scenario_label = scenario_name.replace("_", " ").title()
     subtitle = (
         f"90d research model • Source={report['source']} • CALM {regimes.count('CALM')} / "
         f"NORMAL {regimes.count('NORMAL')} / STORM {regimes.count('STORM')} • As of {report['as_of_date']}"
