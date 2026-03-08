@@ -12,6 +12,7 @@ import {MockPricePair, MockPancakeFactory, MockPancakePairLocking, MockPancakeRo
 contract ForkChaosScenarios is Script {
     address internal constant ROUTER = 0x10ED43C718714eb63d5aA57B78B54704E256024E;
     address internal constant FACTORY = 0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73;
+    address internal constant ACTOR = address(0xBEEF);
 
     function run() external {
         _selectForkIfConfigured();
@@ -142,9 +143,11 @@ contract ForkChaosScenarios is Script {
         vault.cycle();
         require(uint256(vault.riskMode()) == uint256(EngineVault.RiskMode.ONLY_UNWIND), "CHAOS_ORACLE_MODE");
 
-        asset.mint(address(this), 10e18);
+        asset.mint(ACTOR, 10e18);
+        vm.startPrank(ACTOR);
         asset.approve(address(vault), 10e18);
-        (bool ok,) = address(vault).call(abi.encodeWithSignature("deposit(uint256,address)", 10e18, address(this)));
+        (bool ok,) = address(vault).call(abi.encodeWithSignature("deposit(uint256,address)", 10e18, ACTOR));
+        vm.stopPrank();
         require(!ok, "CHAOS_ORACLE_DEPOSIT");
         console2.log("PASS: oracle divergence -> ONLY_UNWIND + deposit paused");
     }
