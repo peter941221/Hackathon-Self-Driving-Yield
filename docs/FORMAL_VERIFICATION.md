@@ -4,7 +4,7 @@
 
 This repo now includes an actual symbolic-proof layer using `halmos`, not just conventional tests.
 
-Current local result: `6/6` symbolic properties passing via `python scripts/run_formal.py`.
+Current local result: `8/8` symbolic properties passing via `python scripts/run_formal.py`.
 
 The goal is not to claim that the entire strategy and all external markets are mathematically proven.
 
@@ -17,9 +17,11 @@ The goal is to prove the **highest-value internal safety properties** that are r
 Formal targets
 ├─ isolated cash accounting
 ├─ empty-vault deposit preview is one-to-one
+├─ empty-vault redeem preview is zero
 ├─ no-profit => no bounty payout
 ├─ broken mark => deposit rejection
 ├─ ONLY_UNWIND blocks fresh exposure
+├─ ONLY_UNWIND recovers after two safe cycles
 └─ flash borrowed base caps at zero when underwater
 ```
 

@@ -108,15 +108,22 @@ contract EngineVaultFormalTest is Test {
 
     function _deployOnlyUnwindVault()
         internal
-        returns (EngineVaultFormalHarness vault, MockERC20 asset, MockERC20 alp, MockLpPair pair)
+        returns (
+            EngineVaultFormalHarness vault,
+            MockERC20 asset,
+            MockERC20 alp,
+            MockLpPair pair,
+            MockVaultOracle oracle,
+            MockHedgeDiamond diamond
+        )
     {
         asset = new MockERC20("USDT", "USDT", 18);
         MockERC20 base = new MockERC20("BTCB", "BTCB", 18);
         alp = new MockERC20("ALP", "ALP", 18);
         pair = new MockLpPair(address(base), address(asset));
         pair.setReserves(1e18, 5e17);
-        MockVaultOracle oracle = new MockVaultOracle(address(pair), 1, 1e18);
-        MockHedgeDiamond diamond = new MockHedgeDiamond(address(alp), address(asset), address(base));
+        oracle = new MockVaultOracle(address(pair), 1, 1e18);
+        diamond = new MockHedgeDiamond(address(alp), address(asset), address(base));
 
         vault = new EngineVaultFormalHarness(
             EngineVault.Addresses({
@@ -210,6 +217,14 @@ contract EngineVaultFormalTest is Test {
         assert(vault.previewDeposit(assets) == assets);
     }
 
+    function check_emptyVaultPreviewRedeemIsZero(uint256 shares) public {
+        _assumeReasonableAmount(shares);
+
+        (EngineVaultFormalHarness vault, MockERC20 asset) = _deployIsolatedVault();
+        asset;
+        assert(vault.previewRedeem(shares) == 0);
+    }
+
     function check_cyclePaysNoBountyWithoutProfit(uint256 assets) public {
         _assumePositiveReasonableAmount(assets);
 
@@ -242,7 +257,7 @@ contract EngineVaultFormalTest is Test {
     function check_onlyUnwindBlocksFreshExposure(uint256 cash) public {
         _assumePositiveReasonableAmount(cash);
 
-        (EngineVaultFormalHarness vault, MockERC20 asset, MockERC20 alp, MockLpPair pair) = _deployOnlyUnwindVault();
+        (EngineVaultFormalHarness vault, MockERC20 asset, MockERC20 alp, MockLpPair pair,,) = _deployOnlyUnwindVault();
         asset.mint(address(vault), cash);
 
         vault.cycle();
@@ -250,6 +265,25 @@ contract EngineVaultFormalTest is Test {
         assert(uint256(vault.riskMode()) == uint256(EngineVault.RiskMode.ONLY_UNWIND));
         assert(alp.balanceOf(address(vault)) == 0);
         assert(pair.balanceOf(address(vault)) == 0);
+    }
+
+    function check_onlyUnwindRecoversAfterTwoSafeCycles() public {
+        (EngineVaultFormalHarness vault, MockERC20 asset,, MockLpPair pair, MockVaultOracle oracle,) = _deployOnlyUnwindVault();
+        asset.mint(address(vault), 1e18);
+
+        vault.cycle();
+        assert(uint256(vault.riskMode()) == uint256(EngineVault.RiskMode.ONLY_UNWIND));
+
+        pair.setReserves(1e18, 1e18);
+        oracle.setTwapPrice(1e18);
+
+        vault.cycle();
+        assert(uint256(vault.riskMode()) == uint256(EngineVault.RiskMode.ONLY_UNWIND));
+        assert(vault.safeCycleCount() == 1);
+
+        vault.cycle();
+        assert(uint256(vault.riskMode()) == uint256(EngineVault.RiskMode.NORMAL));
+        assert(vault.safeCycleCount() == 0);
     }
 
     function check_flashBorrowedBaseExcludedWhenUnderwater(uint16 baseBalance, uint16 borrowed) public {

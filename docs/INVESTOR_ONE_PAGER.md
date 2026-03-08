@@ -47,9 +47,11 @@ It is presented as a strategy system with a growing assurance stack:
 
 - `54/54` contract tests passing locally.
 - `5/5` invariant checks passing.
-- `6/6` symbolic formal properties passing via Halmos.
+- `8/8` symbolic formal properties passing via Halmos.
 - adversarial tests covering dependency and unwind edge cases.
 - Slither reduced to `1` remaining finding family focused on flash-callback event ordering.
+
+Manual callback review: `docs/PANCAKECALL_AUDIT.md`.
 - optional BNB Chain fork checks for live integration readability.
 
 For the full proof index, see `docs/ASSURANCE.md`.
@@ -57,7 +59,7 @@ For the full proof index, see `docs/ASSURANCE.md`.
 
 ## Research Snapshot (90d model)
 
-As of `2026-03-07` using trailing 90d CoinGecko BTC data.
+As of `2026-03-08` using trailing 90d CoinGecko BTC data.
 
 Assumptions:
 
@@ -69,20 +71,20 @@ Assumptions:
 
 ### Baseline
 
-- Dynamic CAGR: `14.09%`
-- Dynamic cumulative return: `3.27%`
-- Dynamic max drawdown: `-0.07%`
-- Fixed NORMAL CAGR: `13.34%`
-- Pure LP CAGR: `-1.55%`
+- Dynamic CAGR: `15.09%`
+- Dynamic cumulative return: `3.49%`
+- Dynamic max drawdown: `-0.06%`
+- Fixed NORMAL CAGR: `13.61%`
+- Pure LP CAGR: `-1.60%`
 
 
 ### Stress
 
-- Dynamic CAGR: `9.66%`
-- Dynamic cumulative return: `2.28%`
-- Dynamic max drawdown: `-0.22%`
-- Fixed NORMAL CAGR: `9.05%`
-- Pure LP CAGR: `-11.05%`
+- Dynamic CAGR: `10.93%`
+- Dynamic cumulative return: `2.56%`
+- Dynamic max drawdown: `-0.17%`
+- Fixed NORMAL CAGR: `9.30%`
+- Pure LP CAGR: `-11.27%`
 
 
 ## Interpretation

@@ -16,7 +16,7 @@ Self-Driving Yield Engine now ships with a stronger investor-proof story: a dedi
 ## Highlights
 
 - Added an investor-facing `docs/ASSURANCE.md` that links research, tests, static analysis, and fork checks into one proof index.
-- Added an actual Halmos-based formal layer proving six core internal properties.
+- Added an actual Halmos-based formal layer proving eight core internal properties.
 - Expanded machine-checked invariants around asset conservation, flash-borrow cleanup, and no-profit/no-bounty behavior.
 - Added adversarial tests for `ONLY_UNWIND`, blocked hedge closes, and ALP cooldown-constrained unwinds.
 - Added minimal GitHub Actions CI for `forge build/test`, invariant runs, research script checks, scenario backtests, and Slither.
@@ -31,18 +31,18 @@ This release makes the project easier to diligence:
 - reviewers can reproduce the commands locally,
 - and safety discussions can point to concrete invariants and adversarial tests instead of only narrative claims.
 
-## Investor Snapshot (research output as of 2026-03-07)
+## Investor Snapshot (research output as of 2026-03-08)
 
 | Scenario | Dynamic CAGR | Dynamic CumRet | Fixed NORMAL CAGR | Pure LP CAGR | Dynamic MaxDD | Trade Days |
 |---|---:|---:|---:|---:|---:|---:|
-| Baseline | 14.09% | 3.27% | 13.34% | -1.55% | -0.07% | 7 |
-| Stress | 9.66% | 2.28% | 9.05% | -11.05% | -0.22% | 7 |
+| Baseline | 15.09% | 3.49% | 13.61% | -1.60% | -0.06% | 5 |
+| Stress | 10.93% | 2.56% | 9.30% | -11.27% | -0.17% | 5 |
 
 ## Validation
 
 - `forge test` → `54/54 PASS`
 - `forge test --match-path test/Invariant.t.sol` → `5/5 PASS`
-- `python scripts/run_formal.py` → `6/6 PASS`
+- `python scripts/run_formal.py` → `8/8 PASS`
 - `python -m py_compile scripts/backtest.py` → `PASS`
 - `python scripts/backtest.py --days 90 --tvl 100000 --cycles-per-day 4 --gas-gwei 50 --compare-scenarios --json-out cache/backtest-report.json` → `PASS`
 - `slither . --exclude-dependencies --exclude incorrect-equality,timestamp,low-level-calls,naming-convention,cyclomatic-complexity` → `1 finding triaged`
@@ -86,7 +86,8 @@ This release makes the project easier to diligence:
 #### 2. Safety Coverage
 
 - Invariants now cover asset conservation, flash state cleanup, and zero bounty without profit.
-- Formal verification now covers six symbolic properties around accounting, price-guard behavior, `ONLY_UNWIND`, and no-profit bounty behavior.
+- Formal verification now covers eight symbolic properties around accounting, share math, price-guard behavior, `ONLY_UNWIND`, and no-profit bounty behavior.
+- Added a dedicated manual review note for the remaining flash-callback hotspot in `docs/PANCAKECALL_AUDIT.md`.
 - Adversarial tests now prove safer behavior under dependency stress.
 
 #### 3. Research Story
@@ -104,7 +105,7 @@ This release makes the project easier to diligence:
 
 - Solidity regression: `forge test` → `54/54 PASS`
 - Invariants: `forge test --match-path test/Invariant.t.sol` → `5/5 PASS`
-- Formal verification: `python scripts/run_formal.py` → `6/6 PASS`
+- Formal verification: `python scripts/run_formal.py` → `8/8 PASS`
 - Research script: `python -m py_compile scripts/backtest.py` → `PASS`
 - Scenario research run: `python scripts/backtest.py --days 90 --tvl 100000 --cycles-per-day 4 --gas-gwei 50 --compare-scenarios --json-out cache/backtest-report.json` → `PASS`
 - Static analysis: Slither run completed and triaged; only `pancakeCall()` event-order warnings remain

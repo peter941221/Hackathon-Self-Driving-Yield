@@ -10,8 +10,8 @@
   </a>
   <img src="https://img.shields.io/badge/Tests-54%2F54%20Passing-brightgreen?style=for-the-badge" alt="Tests">
   <img src="https://img.shields.io/badge/Platform-BNB%20Chain-yellow?style=for-the-badge" alt="Platform">
-  <img src="https://img.shields.io/badge/Baseline%20CAGR-14.29%25-2563eb?style=for-the-badge" alt="Baseline CAGR">
-  <img src="https://img.shields.io/badge/Stress%20CAGR-9.94%25-0f766e?style=for-the-badge" alt="Stress CAGR">
+  <img src="https://img.shields.io/badge/Baseline%20CAGR-15.09%25-2563eb?style=for-the-badge" alt="Baseline CAGR">
+  <img src="https://img.shields.io/badge/Stress%20CAGR-10.93%25-0f766e?style=for-the-badge" alt="Stress CAGR">
   <img src="https://img.shields.io/badge/Stress%20MaxDD--0.17%25-b45309?style=for-the-badge" alt="Stress MaxDD">
   <img src="https://img.shields.io/badge/Risk%20Mode-ONLY__UNWIND-be123c?style=for-the-badge" alt="ONLY_UNWIND">
   <img src="https://img.shields.io/badge/Admin-None-7c3aed?style=for-the-badge" alt="No Admin">
@@ -86,12 +86,12 @@ ALP  │  ███    │ Stable   │  ██████ │ High yield!
 
 ## Investor Snapshot
 
-**Research window**: trailing 90 days as of `2026-03-06`, `$100k` simulated TVL, CoinGecko BTC path, baseline/stress scenario comparison.
+**Research window**: trailing 90 days as of `2026-03-08`, `$100k` simulated TVL, CoinGecko BTC path, baseline/stress scenario comparison.
 
 | Scenario | Dynamic CAGR | Dynamic CumRet | Fixed NORMAL CAGR | Pure LP CAGR | Dynamic MaxDD | Dynamic Trade Days |
 |---|---:|---:|---:|---:|---:|---:|
-| Baseline | 14.29% | 3.31% | 13.08% | -1.44% | -0.06% | 5 |
-| Stress | 9.94% | 2.34% | 8.68% | -11.04% | -0.17% | 5 |
+| Baseline | 15.09% | 3.49% | 13.61% | -1.60% | -0.06% | 5 |
+| Stress | 10.93% | 2.56% | 9.30% | -11.27% | -0.17% | 5 |
 
 Notes:
 
@@ -334,7 +334,7 @@ python scripts/backtest.py --days 90 --tvl 100000 --cycles-per-day 4 --gas-gwei 
 
 Latest local validation: `54/54` tests passing.
 
-Formal verification: `6/6` symbolic properties passing via `python scripts/run_formal.py`.
+Formal verification: `8/8` symbolic properties passing via `python scripts/run_formal.py`.
 
 Invariant tests:
 
